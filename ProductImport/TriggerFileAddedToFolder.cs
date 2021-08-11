@@ -7,7 +7,7 @@ namespace Xtensive.Project109.Host.DPA
 {
 	public class TriggerFileAddedToFolder : Signals2TriggerBase
 	{
-		private const string FILE_DIRECTORY = @"F:\Temp\test";
+		private const string FILE_DIRECTORY = @"C:\Temp\test";
 		private readonly IFileSystemWatcher watcher;
 
 		public TriggerFileAddedToFolder(IServiceProvider serviceProvider)
