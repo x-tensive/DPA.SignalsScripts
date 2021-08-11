@@ -84,7 +84,7 @@ namespace Xtensive.Project109.Host.DPA
 											OnSignal(new ZFDowntimeUnclassified {
 												EquipmentId = equipmentId,
 												StartDate=reason.Value.Reason.StartDate,
-												ReasonId = reason.Value.Reason.ReasonId,
+												ReasonId = reason.Value.Reason.Id,
 												LevelId = i
 											});
 											reason.Value.LastLevelIdSend = i;
