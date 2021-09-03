@@ -12,7 +12,7 @@ using System.Timers;
 using Xtensive.DPA.EventManager;
 using Xtensive.Project109.Host.Base;
 
-namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
+namespace Xtensive.Project109.Host.DPA
 {
 	/// <summary>
 	/// Fires if workcenter has started job, but workcenter itself does not sends any events to dpa host during period of {MAX_IDLE_TIME_IN_SECONDS} seconds 

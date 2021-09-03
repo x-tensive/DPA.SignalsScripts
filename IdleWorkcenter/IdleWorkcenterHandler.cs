@@ -13,7 +13,7 @@ using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
 
-namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
+namespace Xtensive.Project109.Host.DPA
 {
 	/// <summary>
 	/// Will send an email notification to {USER_ID} using the {TEMPLATE_ID} template
@@ -24,7 +24,7 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
 		/// <summary>
 		/// User to be notified with message about idle driver
 		/// </summary>
-		public long USER_ID = 821;
+		public long[] USERS = new long[] { 821 };
 
 		/// <summary>
 		/// Message teamplate to be used for user notification
@@ -59,12 +59,12 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
 				this.logger = logger;
 			}
 
-			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime, long userId, long templateId)
+			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime, long[] userIdList, long templateId)
 			{
 				if (await ShouldSendMessage(driverId, lastEventTime)) {
 					logger.Info(string.Format("Notifying about not responding driver [{0}]", driverId));
 
-					SendMessage(driverId, userId, templateId);
+					SendMessage(driverId, userIdList, templateId);
 
 					logger.Info(string.Format("Notification about not responding driver [{0}] is done", driverId));
 				}
@@ -134,11 +134,11 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
 				return messageDelivery == null;
 			}
 
-			private void SendMessage(Guid driverId, long userId, long templateId)
+			private void SendMessage(Guid driverId, long[] usersIdList, long templateId)
 			{
 				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).First();
 				var template = Query.SingleOrDefault<MessageTemplate>(templateId);
-				var user = Query.Single<User>(userId);
+				var users = Query.All<User>().Where(x => usersIdList.Contains(x.Id)).ToArray();
 				var parameters = new Dictionary<string, string> {
 					{"EquipmentName", equipment.Name },
 					{"EquipmentId", equipment.Id.ToString() }
@@ -146,7 +146,7 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
 				messageBuilder.BuildAndScheduleMessages(
 					MessageTransportType.Email,
 					template,
-					new[] { user },
+					users,
 					() => parameters,
 					() => Array.Empty<Attachment>(),
 					(x) => { },
@@ -176,7 +176,7 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts
 					x.GetRequiredService<IMicroserviceClient>(),
 					logger
 				);
-				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2, USER_ID, TEMPLATE_ID);
+				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2, USERS, TEMPLATE_ID);
 			});
 		}
 	}
