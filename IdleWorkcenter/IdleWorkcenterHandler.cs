@@ -24,12 +24,13 @@ namespace Xtensive.Project109.Host.DPA
 		/// <summary>
 		/// User to be notified with message about idle driver
 		/// </summary>
-		public long[] USERS = new long[] { 821 };
-
+		public string[] USERS = new string[] { };
 		/// <summary>
 		/// Message teamplate to be used for user notification
 		/// </summary>
-		public long TEMPLATE_ID = 325379;
+		public string TEMPLATE_NAME = "WORK CENTER STATE NOTIFICATION";
+		private const string HTTP_PROTOCOL = "https";
+		private const string HOST = "localhost";
 		private const string MESSAGE_SOURCE = "WORK CENTER STATE NOTIFICATION";
 		private class Response<T>
 		{
@@ -44,6 +45,8 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			private readonly IHostLog logger;
 			private readonly IMicroserviceClient microserviceClient;
+			private readonly IJobService jobService;
+			private readonly MasterRegistrationService masterRegistrationService;
 			private readonly NotificationMessageTaskBuilder messageBuilder;
 			private readonly IMicroserviceSettingsService microserviceSettings;
 
@@ -51,20 +54,24 @@ namespace Xtensive.Project109.Host.DPA
 				IMicroserviceSettingsService microserviceSettings,
 				NotificationMessageTaskBuilder messageBuilder,
 				IMicroserviceClient microserviceClient,
+				IJobService jobService,
+				MasterRegistrationService masterRegistrationService,
 				IHostLog logger)
 			{
 				this.microserviceSettings = microserviceSettings;
 				this.messageBuilder = messageBuilder;
 				this.microserviceClient = microserviceClient;
+				this.jobService = jobService;
+				this.masterRegistrationService = masterRegistrationService;
 				this.logger = logger;
 			}
 
-			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime, long[] userIdList, long templateId)
+			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime, string[] usersPersonnelNumbers, string templateName)
 			{
 				if (await ShouldSendMessage(driverId, lastEventTime)) {
 					logger.Info(string.Format("Notifying about not responding driver [{0}]", driverId));
 
-					SendMessage(driverId, userIdList, templateId);
+					SendMessage(driverId, usersPersonnelNumbers, templateName);
 
 					logger.Info(string.Format("Notification about not responding driver [{0}] is done", driverId));
 				}
@@ -134,19 +141,41 @@ namespace Xtensive.Project109.Host.DPA
 				return messageDelivery == null;
 			}
 
-			private void SendMessage(Guid driverId, long[] usersIdList, long templateId)
+			private User[] GetRecipients(string[] usersPersonnelNumber, Equipment equipment)
+			{
+				var masters = new User[] { };
+				var master = masterRegistrationService.GetCurrentMaster(equipment.Id);
+				if (master != null) {
+					var currentMaster = Query.Single<User>(master.Id);
+					masters = new[] { currentMaster };
+				}
+				return Query.All<DpaUser>()
+					.Where(x => usersPersonnelNumber.Contains(x.PersonnelNumber))
+					.Distinct()
+					.ToArray()
+					.Union(masters)
+					.ToArray();
+			}
+
+			private void SendMessage(Guid driverId, string[] usersPersonnelNumbers, string templateName)
 			{
 				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).First();
-				var template = Query.SingleOrDefault<MessageTemplate>(templateId);
-				var users = Query.All<User>().Where(x => usersIdList.Contains(x.Id)).ToArray();
+				var job = jobService.GetActiveProduction(equipment);
+				if (job == null) {
+					return;
+				}
+
+				var template = Query.All<MessageTemplate>().Where(x => x.Name.ToLower() == templateName.ToLower()).Single();
 				var parameters = new Dictionary<string, string> {
-					{"EquipmentName", equipment.Name },
-					{"EquipmentId", equipment.Id.ToString() }
+					{ "EquipmentName", equipment.Name },
+					{ "EquipmentId", equipment.Id.ToString() },
+					{ "JobName", job.Order },
+					{ "JobLink",string.Format("{0}://{1}/operatorNew/#/master/equipment/{2}/tasks/{3}", HTTP_PROTOCOL, HOST, equipment.Id, job.Id )}
 				};
 				messageBuilder.BuildAndScheduleMessages(
 					MessageTransportType.Email,
 					template,
-					users,
+					GetRecipients(usersPersonnelNumbers, equipment),
 					() => parameters,
 					() => Array.Empty<Attachment>(),
 					(x) => { },
@@ -174,9 +203,11 @@ namespace Xtensive.Project109.Host.DPA
 					x.GetRequiredService<IMicroserviceSettingsService>(),
 					x.GetRequiredService<NotificationMessageTaskBuilder>(),
 					x.GetRequiredService<IMicroserviceClient>(),
+					x.GetRequiredService<IJobService>(),
+					x.GetRequiredService<MasterRegistrationService>(),
 					logger
 				);
-				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2, USERS, TEMPLATE_ID);
+				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2, USERS, TEMPLATE_NAME);
 			});
 		}
 	}
