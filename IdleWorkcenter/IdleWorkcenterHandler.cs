@@ -1,5 +1,6 @@
 using DPA.Core.Contracts;
 using DPA.Core.DependencyInjection;
+using DPA.Core.Services;
 using DPA.Messenger.Client.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -24,14 +25,16 @@ namespace Xtensive.Project109.Host.DPA
 		/// <summary>
 		/// User to be notified with message about idle driver
 		/// </summary>
-		public string[] USERS = new string[] { };
+		public static readonly string[] USERS = new string[] { };
 		/// <summary>
 		/// Message teamplate to be used for user notification
 		/// </summary>
-		public string TEMPLATE_NAME = "WORK CENTER STATE NOTIFICATION";
+		private static readonly TimeSpan MinimumRepeatInterval = TimeSpan.FromMinutes(6);
+		private const string TEMPLATE_NAME = "WORK CENTER STATE NOTIFICATION";
 		private const string HTTP_PROTOCOL = "https";
 		private const string HOST = "localhost";
-		private const string MESSAGE_SOURCE = "WORK CENTER STATE NOTIFICATION";
+		private const string ONE_TIME_MESSAGE = "WORK CENTER STATE NOTIFICATION";
+		private const string MASTER_MESSAGE_SOURCE = "WORK CENTER STATE NOTIFICATION FOR MASTER";
 		private class Response<T>
 		{
 			public T Value { get; set; }
@@ -47,6 +50,7 @@ namespace Xtensive.Project109.Host.DPA
 			private readonly IMicroserviceClient microserviceClient;
 			private readonly IJobService jobService;
 			private readonly MasterRegistrationService masterRegistrationService;
+			private readonly IDateTimeOffsetProvider timeProvider;
 			private readonly NotificationMessageTaskBuilder messageBuilder;
 			private readonly IMicroserviceSettingsService microserviceSettings;
 
@@ -56,6 +60,7 @@ namespace Xtensive.Project109.Host.DPA
 				IMicroserviceClient microserviceClient,
 				IJobService jobService,
 				MasterRegistrationService masterRegistrationService,
+				IDateTimeOffsetProvider timeProvider,
 				IHostLog logger)
 			{
 				this.microserviceSettings = microserviceSettings;
@@ -63,18 +68,89 @@ namespace Xtensive.Project109.Host.DPA
 				this.microserviceClient = microserviceClient;
 				this.jobService = jobService;
 				this.masterRegistrationService = masterRegistrationService;
+				this.timeProvider = timeProvider;
 				this.logger = logger;
 			}
 
-			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime, string[] usersPersonnelNumbers, string templateName)
+			private void SendMessage(ProductionJob activeJob, Equipment equipment, string messageSource, params User[] currentRecipients)
 			{
-				if (await ShouldSendMessage(driverId, lastEventTime)) {
-					logger.Info(string.Format("Notifying about not responding driver [{0}]", driverId));
-
-					SendMessage(driverId, usersPersonnelNumbers, templateName);
-
-					logger.Info(string.Format("Notification about not responding driver [{0}] is done", driverId));
+				if(currentRecipients == null || currentRecipients.Length == 0) {
+					return;
 				}
+
+				var template = Query.All<MessageTemplate>().Where(x => x.Name.ToLower() == TEMPLATE_NAME.ToLower()).Single();
+				var parameters = new Dictionary<string, string> {
+					{ "EquipmentName", equipment.Name },
+					{ "EquipmentId", equipment.Id.ToString() },
+					{ "JobName", activeJob.Order },
+					{ "JobLink", string.Format("{0}://{1}/operatorNew/#/master/equipment/{2}/tasks/{3}", HTTP_PROTOCOL, HOST, equipment.Id, activeJob.Id )}
+				};
+				messageBuilder.BuildAndScheduleMessages(
+					MessageTransportType.Email,
+					template,
+					currentRecipients,
+					() => parameters,
+					() => Array.Empty<Attachment>(),
+					(x) => { },
+					equipment.DriverIdentifier,
+					messageSource
+				);
+			}
+
+			private async Task SendOneTimeMessage(ProductionJob job, Equipment equipment, DateTimeOffset lastEventTime)
+			{
+				var existingMessage = await QueryAsync<EntityReference>("message", BuildMessageQuery(equipment.DriverIdentifier, ONE_TIME_MESSAGE, lastEventTime));
+				if (existingMessage != null) {
+					var existingMessageDelivery = await QueryAsync<MessageDelivery>("messageDelivery", BuildMessageDeliveryQuery(existingMessage.Id));
+					if (existingMessageDelivery != null) {
+						logger.Info(string.Format("One time notification about not responding driver was already sended. Message [{0}] was queued at [{1}]", existingMessage.Id, existingMessageDelivery.QueuedTime));
+						return;
+					}
+				}
+
+				var oneTimeRecipients = Query.All<DpaUser>()
+					.Where(x => USERS.Contains(x.PersonnelNumber))
+					.ToArray();
+								
+				SendMessage(job, equipment, ONE_TIME_MESSAGE, oneTimeRecipients);
+				logger.Info(string.Format("One time notification about not responding driver was sended for {0} recipients", oneTimeRecipients.Length));
+			}
+
+			private async Task SendMessageForMaster(ProductionJob activeJob, Equipment equipment, DateTimeOffset lastEventTime)
+			{
+				var previousMessageTimestamp = DateTimeOffset.MinValue;
+				var previousMessage = await QueryAsync<EntityReference>("message", BuildMessageQuery(equipment.DriverIdentifier, MASTER_MESSAGE_SOURCE, lastEventTime));
+				if (previousMessage != null) {
+					var messageDelivery = await QueryAsync<MessageDelivery>("messageDelivery", BuildMessageDeliveryQuery(previousMessage.Id));
+					if (messageDelivery != null) {
+						previousMessageTimestamp = messageDelivery.QueuedTime;
+					}
+				}
+
+				if ((previousMessageTimestamp - timeProvider.Now).Duration() <= MinimumRepeatInterval) {
+					logger.Info(string.Format("It's to early to send new notification for master for equipment '{0}'(driver {1}). Previous message was queued in {2}", equipment.Name, equipment.DriverIdentifier, previousMessageTimestamp));
+					return;
+				}
+				var master = masterRegistrationService.GetCurrentMaster(equipment.Id);
+				if (master == null) {
+					logger.Info(string.Format("Unable to find current master for sending notification for equipment '{0}'(driver {1})", equipment.Name, equipment.DriverIdentifier));
+					return;
+				}
+				SendMessage(activeJob, equipment, MASTER_MESSAGE_SOURCE, Query.Single<User>(master.Id));
+				logger.Info(string.Format("Notification for master for equipment '{0}'(driver {1}) aws sended", equipment.Name, equipment.DriverIdentifier));
+			}
+
+			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime)
+			{
+				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).Single();
+				var job = jobService.GetActiveProduction(equipment);
+				if (job == null) {
+					logger.Info(string.Format("Job was already completed. Notification for equipment '{{0}}'(driver {1}) is cancelled", equipment.Name, driverId));
+					return;
+				}
+
+				await SendOneTimeMessage(job, equipment, lastEventTime);
+				await SendMessageForMaster(job, equipment, lastEventTime);
 			}
 
 			private async Task<T> QueryAsync<T>(string targetEntity, string query)
@@ -110,12 +186,12 @@ namespace Xtensive.Project109.Host.DPA
 				}
 			}
 
-			private static string BuildMessageQuery(Guid driverId, DateTimeOffset lastEventTime)
+			private static string BuildMessageQuery(Guid driverId, string source, DateTimeOffset lastEventTime)
 			{
 				var metadata = JsonConvert.SerializeObject(driverId);
 				return string.Format(
 					"$filter=Source eq '{0}' and Metadata eq '{1}' and CreateTime gt {2}&$orderby=CreateTime desc&$top=1&$select=Id",
-					MESSAGE_SOURCE,
+					source,
 					metadata,
 					lastEventTime.UtcDateTime.ToString("yyyy-MM-ddTHH:mmZ")
 				);
@@ -124,64 +200,6 @@ namespace Xtensive.Project109.Host.DPA
 			private static string BuildMessageDeliveryQuery(long messageId)
 			{
 				return string.Format("$filter=MessageId eq {0} and (DeliveryStatus eq 'Queued' or DeliveryStatus eq 'Delivered')&orderby=Id&$top=1&$select=Id,QueuedTime", messageId);
-			}
-
-			private async Task<bool> ShouldSendMessage(Guid driverId, DateTimeOffset lastEventTime)
-			{
-				var existingMessage = await QueryAsync<EntityReference>("message", BuildMessageQuery(driverId, lastEventTime));
-				if (existingMessage == null) {
-					return true;
-				}
-
-				var messageDelivery = await QueryAsync<MessageDelivery>("messageDelivery", BuildMessageDeliveryQuery(existingMessage.Id));
-				if (messageDelivery != null) {
-					logger.Info(string.Format("Notification about not responding driver was already sended. Message [{0}] was queued at [{1}]", existingMessage.Id, messageDelivery.QueuedTime));
-				}
-
-				return messageDelivery == null;
-			}
-
-			private User[] GetRecipients(string[] usersPersonnelNumber, Equipment equipment)
-			{
-				var masters = new User[] { };
-				var master = masterRegistrationService.GetCurrentMaster(equipment.Id);
-				if (master != null) {
-					var currentMaster = Query.Single<User>(master.Id);
-					masters = new[] { currentMaster };
-				}
-				return Query.All<DpaUser>()
-					.Where(x => usersPersonnelNumber.Contains(x.PersonnelNumber))
-					.Distinct()
-					.ToArray()
-					.Union(masters)
-					.ToArray();
-			}
-
-			private void SendMessage(Guid driverId, string[] usersPersonnelNumbers, string templateName)
-			{
-				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).First();
-				var job = jobService.GetActiveProduction(equipment);
-				if (job == null) {
-					return;
-				}
-
-				var template = Query.All<MessageTemplate>().Where(x => x.Name.ToLower() == templateName.ToLower()).Single();
-				var parameters = new Dictionary<string, string> {
-					{ "EquipmentName", equipment.Name },
-					{ "EquipmentId", equipment.Id.ToString() },
-					{ "JobName", job.Order },
-					{ "JobLink",string.Format("{0}://{1}/operatorNew/#/master/equipment/{2}/tasks/{3}", HTTP_PROTOCOL, HOST, equipment.Id, job.Id )}
-				};
-				messageBuilder.BuildAndScheduleMessages(
-					MessageTransportType.Email,
-					template,
-					GetRecipients(usersPersonnelNumbers, equipment),
-					() => parameters,
-					() => Array.Empty<Attachment>(),
-					(x) => { },
-					driverId,
-					MESSAGE_SOURCE
-				);
 			}
 		}
 
@@ -205,9 +223,10 @@ namespace Xtensive.Project109.Host.DPA
 					x.GetRequiredService<IMicroserviceClient>(),
 					x.GetRequiredService<IJobService>(),
 					x.GetRequiredService<MasterRegistrationService>(),
+					x.GetRequiredService<IDateTimeOffsetProvider>(),
 					logger
 				);
-				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2, USERS, TEMPLATE_NAME);
+				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2);
 			});
 		}
 	}
