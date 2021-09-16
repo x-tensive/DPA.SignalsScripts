@@ -6,10 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Xtensive.DPA.Contracts;
+using Xtensive.DPA.Host.Localization;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
@@ -29,7 +32,7 @@ namespace Xtensive.Project109.Host.DPA
 		/// <summary>
 		/// Message teamplate to be used for user notification
 		/// </summary>
-		private static readonly TimeSpan MinimumRepeatInterval = TimeSpan.FromMinutes(6);
+		private static readonly TimeSpan MinimumRepeatInterval = TimeSpan.FromMinutes(15);
 		private const string TEMPLATE_NAME = "WORK CENTER STATE NOTIFICATION";
 		private const string HTTP_PROTOCOL = "https";
 		private const string HOST = "localhost";
@@ -72,18 +75,41 @@ namespace Xtensive.Project109.Host.DPA
 				this.logger = logger;
 			}
 
-			private void SendMessage(ProductionJob activeJob, Equipment equipment, string messageSource, params User[] currentRecipients)
+			private void SendMessage(ProductionJob activeJob, Equipment equipment, DateTimeOffset lastEventTimeStamp, string messageSource, params User[] currentRecipients)
 			{
-				if(currentRecipients == null || currentRecipients.Length == 0) {
+				if (currentRecipients == null || currentRecipients.Length == 0) {
 					return;
 				}
 
 				var template = Query.All<MessageTemplate>().Where(x => x.Name.ToLower() == TEMPLATE_NAME.ToLower()).Single();
+				var currentState = Query.All<EquipmentStateRecord>()
+					.Where(x => x.Equipment.Id == equipment.Id)
+					.OrderByDescending(x => x.StartDate)
+					.FirstOrDefault();
+				var currentStateValue = MachineStateType.Undefined;
+
+				if (currentState != null) {
+					var stateDuration = (currentState.StartDate - timeProvider.Now).Duration();
+					if (stateDuration < MinimumRepeatInterval) {
+						logger.Info(string.Format("Equipment({0}) state(currently is {1}) has changed {2} seconds ago. It's too early for notification. State should be the same at least for {3} seconds before notification",
+							equipment.Name,
+							currentStateValue,
+							(int)stateDuration.TotalSeconds,
+							(int)MinimumRepeatInterval.TotalSeconds)
+							);
+						return;
+					}
+					currentStateValue = currentState.Type;
+				}
+
 				var parameters = new Dictionary<string, string> {
 					{ "EquipmentName", equipment.Name },
 					{ "EquipmentId", equipment.Id.ToString() },
 					{ "JobName", activeJob.Order },
-					{ "JobLink", string.Format("{0}://{1}/operatorNew/#/master/equipment/{2}/tasks/{3}", HTTP_PROTOCOL, HOST, equipment.Id, activeJob.Id )}
+					{ "JobLink", string.Format("{0}://{1}/operatorNew/#/master/equipment/{2}/tasks/{3}", HTTP_PROTOCOL, HOST, equipment.Id, activeJob.Id )},
+					{ "SignalTimestamp", timeProvider.Now.ToString(LocalizationManager.Ru) },
+					{ "CurrentEquipmentState", currentStateValue.GetName() },
+					{ "LastEventTimeStamp", lastEventTimeStamp == DateTimeOffset.MinValue ? "неизвестного момента": lastEventTimeStamp.ToString(LocalizationManager.Ru)}
 				};
 				messageBuilder.BuildAndScheduleMessages(
 					MessageTransportType.Email,
@@ -111,8 +137,8 @@ namespace Xtensive.Project109.Host.DPA
 				var oneTimeRecipients = Query.All<DpaUser>()
 					.Where(x => USERS.Contains(x.PersonnelNumber))
 					.ToArray();
-								
-				SendMessage(job, equipment, ONE_TIME_MESSAGE, oneTimeRecipients);
+
+				SendMessage(job, equipment, lastEventTime, ONE_TIME_MESSAGE, oneTimeRecipients);
 				logger.Info(string.Format("One time notification about not responding driver was sended for {0} recipients", oneTimeRecipients.Length));
 			}
 
@@ -136,8 +162,8 @@ namespace Xtensive.Project109.Host.DPA
 					logger.Info(string.Format("Unable to find current master for sending notification for equipment '{0}'(driver {1})", equipment.Name, equipment.DriverIdentifier));
 					return;
 				}
-				SendMessage(activeJob, equipment, MASTER_MESSAGE_SOURCE, Query.Single<User>(master.Id));
-				logger.Info(string.Format("Notification for master for equipment '{0}'(driver {1}) aws sended", equipment.Name, equipment.DriverIdentifier));
+				SendMessage(activeJob, equipment, lastEventTime, MASTER_MESSAGE_SOURCE, Query.Single<User>(master.Id));
+				logger.Info(string.Format("Notification for master for equipment '{0}'(driver {1}) was sended", equipment.Name, equipment.DriverIdentifier));
 			}
 
 			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime)
@@ -216,18 +242,21 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			var signalInfo = (Tuple<Guid, DateTimeOffset>)args.Obj;
 
-			return executor.ExecuteAsync(x => {
-				var internalHandler = new BtkInternalHandler(
-					x.GetRequiredService<IMicroserviceSettingsService>(),
-					x.GetRequiredService<NotificationMessageTaskBuilder>(),
-					x.GetRequiredService<IMicroserviceClient>(),
-					x.GetRequiredService<IJobService>(),
-					x.GetRequiredService<MasterRegistrationService>(),
-					x.GetRequiredService<IDateTimeOffsetProvider>(),
-					logger
-				);
-				return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2);
-			});
+			return executor
+				.ExecuteAsync(x => {
+					var internalHandler = new BtkInternalHandler(
+						x.GetRequiredService<IMicroserviceSettingsService>(),
+						x.GetRequiredService<NotificationMessageTaskBuilder>(),
+						x.GetRequiredService<IMicroserviceClient>(),
+						x.GetRequiredService<IJobService>(),
+						x.GetRequiredService<MasterRegistrationService>(),
+						x.GetRequiredService<IDateTimeOffsetProvider>(),
+						logger
+					);
+					using (new DPALocalizationScope(LocalizationManager.Ru)) {
+						return internalHandler.ExecuteAsync(signalInfo.Item1, signalInfo.Item2);
+					}
+				});
 		}
 	}
 }

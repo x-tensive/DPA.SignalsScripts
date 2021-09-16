@@ -22,7 +22,7 @@ namespace Xtensive.Project109.Host.DPA
 		/// <summary>
 		/// Maximum allowed idle duration
 		/// </summary>
-		public int MAX_IDLE_TIME_IN_SECONDS = 3 * 60;
+		public int MAX_IDLE_TIME_IN_SECONDS = 15 * 60;
 		private TimeSpan GetMaxIdleDuration()
 		{
 			return TimeSpan.FromSeconds(MAX_IDLE_TIME_IN_SECONDS);
