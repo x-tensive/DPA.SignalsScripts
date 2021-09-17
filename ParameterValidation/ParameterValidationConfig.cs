@@ -20,5 +20,8 @@ namespace Xtensive.Project109.Host.DPA
 
 		//Windows folder for storing validation results
 		public const string LOG_DESTINATION = @"D:\Logs\Momentum Data";
+
+		public const string VALIDATION_TRIGGER = "VALIDATIE";
+		public const string VALIDATION_TRIGGER_VALUE = "1";
 	}
 }
