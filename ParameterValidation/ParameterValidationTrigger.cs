@@ -14,7 +14,6 @@ namespace Xtensive.Project109.Host.DPA
 		private readonly IHostLog<ZFTrigger2> logger;
 		private readonly IEventSource eventSource;
 		private IDisposable sub;
-		private long equipmentId;
 
 		public ZFTrigger2(IHostLog<ZFTrigger2> logger, IEventSource eventSource)
 		{
@@ -24,14 +23,14 @@ namespace Xtensive.Project109.Host.DPA
 
 		public override Task StartAsync()
 		{
-			equipmentId = Query.All<Equipment>().Where(x => x.Name == "LR018").Select(x => x.Id).First();
+			var eventId = "fef321ed-6a5e-4538-afb8-711bfee7351e";
 			sub = eventSource
 				.EventsOf<ObjectChanged<EventInfo>>()
-				.WithEventId(Guid.Parse("fef321ed-6a5e-4538-afb8-711bfee7351e"))
+				.WithEventId(Guid.Parse(eventId))
 				.Where(RequiresValidation)
 				.Subscribe(HandleIndicatorEvent);
 
-			logger.Info(string.Format("Subscription for equipment {0} has started", equipmentId));
+			logger.Info(string.Format("Subscription for event {0} has started", eventId));
 			return Task.CompletedTask;
 		}
 
@@ -63,8 +62,12 @@ namespace Xtensive.Project109.Host.DPA
 				return;
 			}
 
-			logger.Info("Trigger fired " + obj.NewValue.EventIdentifier + " - " + ExtractValue(obj.NewValue));
-			OnSignal(Tuple.Create(equipmentId, 1));
+			var equipment = Query.All<Equipment>()
+				.Where(x => x.DriverIdentifier == obj.NewValue.DriverIdentifier)
+				.Select(x => new { x.Id, x.Name })
+				.Single();
+			logger.Info(string.Format("Trigger fired for event '{0}'({1}) of equipment '{2}'({3}) with value = '{4}'", obj.NewValue.EventName, obj.NewValue.EventIdentifier, equipment.Name, equipment.Id, ExtractValue(obj.NewValue)));
+			OnSignal(Tuple.Create(equipment.Id, 1));
 		}
 	}
 }
