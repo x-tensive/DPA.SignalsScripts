@@ -33,7 +33,40 @@ namespace Xtensive.Project109.Host.DPA
 
 		private void LogValidationResult(EquipmentStateValidationResult validationResult)
 		{
-			var validationResultAsString = JsonConvert.SerializeObject(validationResult, new JsonSerializerSettings { Formatting = Formatting.Indented, Converters = new[] { new StringEnumConverter() } });
+			if (validationResult.Result == EquipmentValidationResult.Valid) {
+				return;
+			}
+
+			var invalidResult = new EquipmentStateValidationResultTemp {
+				Equipment = validationResult.Equipment,
+				Result = validationResult.Result,
+				ResultDescription = validationResult.ResultDescription,
+				TimeStamp = validationResult.TimeStamp,
+				ControlProgramsValidations = validationResult
+					.ControlProgramsValidations
+					.Where(x => x.Result != EquipmentValidationResult.Valid)
+					.Select(programValidation => new ControlProgramValidationResult {
+						Result = programValidation.Result,
+						ControlProgram = programValidation.ControlProgram,
+						ResultDescription = programValidation.ResultDescription,
+						Subprogram = programValidation.Subprogram,
+						SetsValidation = programValidation
+							.SetsValidation
+							.Where(x => x.Result != EquipmentValidationResult.Valid)
+							.Select(setValidation => new ParameterSetValidationResult {
+								Result = setValidation.Result,
+								ParameterSet = setValidation.ParameterSet,
+								ParametersValidation = setValidation
+									.ParametersValidation
+									.Where(p => p.Result != EquipmentValidationResult.Valid)
+									.ToArray()
+							})
+							.ToArray()
+					})
+					.ToArray()
+			};
+
+			var validationResultAsString = JsonConvert.SerializeObject(invalidResult, new JsonSerializerSettings { Formatting = Formatting.Indented, Converters = new[] { new StringEnumConverter() } });
 			Write(validationResultAsString);
 		}
 
@@ -101,6 +134,7 @@ namespace Xtensive.Project109.Host.DPA
 				);
 			var allResults = flattenedResults
 				.AsDataTable("ParamValKehren", cfg => cfg
+					.WithColumn("Machine", x => x.Machine)
 					.WithColumn("Timestamp", x => x.Timestamp.DateTime)
 					.WithColumn("Programma", x => x.Program)
 					.WithColumn("Subprogramma", x => x.Subprogram)
@@ -144,18 +178,61 @@ namespace Xtensive.Project109.Host.DPA
 			//WriteToFolder(validationResult, driverId, driverManager);
 		}
 
+		private string BuildMessage(ParameterValidationResult validationResult)
+		{
+			if (validationResult.Result == EquipmentValidationResult.Invalid) {
+				return string.Format(
+					"{0} = {1} [{2} - {3}]",
+					string.IsNullOrEmpty(validationResult.parameter.Description)
+						? validationResult.parameter.Name
+						: validationResult.parameter.Description,
+					validationResult.CurrentValue,
+					validationResult.parameter.Min,
+					validationResult.parameter.Max
+				);
+			}
+			return validationResult.ResultDescription;
+		}
+
 		private string GetMessage(EquipmentStateValidationResult validationResult)
 		{
-			return validationResult
+			var messages = validationResult
 				.ControlProgramsValidations
 				.SelectMany(controlProgram => controlProgram
 					.SetsValidation
-					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(parameter => parameter.ResultDescription))
-					.Concat(new[] { controlProgram.ResultDescription })
+					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { ResultDescription = BuildMessage(x), Order = x.parameter.Id }))
+					.Concat(new[] { new { controlProgram.ResultDescription, Order = -1L } })
 				)
-				.Concat(new[] { validationResult.ResultDescription })
-				.Where(x => !string.IsNullOrEmpty(x))
-				.FirstOrDefault();
+				.Concat(new[] { new { validationResult.ResultDescription, Order = -2L } })
+				.Where(x => !string.IsNullOrEmpty(x.ResultDescription))
+				.OrderBy(x => x.Order)
+				.Select(x => x.ResultDescription)
+				.ToArray();
+
+			if (!messages.Any()) {
+				return string.Empty;
+			}
+
+			var maxLength = 100;
+			var currentResult = messages.First();
+			var currentPrefix = string.Format("[1 of {0}]", messages.Length);
+			var currentCount = 1;
+
+			foreach (var message in messages.Skip(1)) {
+				var tempPrefix = string.Format("[{0} of {1}]", currentCount + 1, messages.Length);
+				var tempResult = string.Format("{0}, {1}", currentResult, message);
+
+				if (string.Format("{0} {1}", tempPrefix, tempResult).Length > maxLength) {
+					break;
+				}
+
+				currentCount++;
+				currentPrefix = tempPrefix;
+				currentResult = tempResult;
+			}
+
+			var result = string.Format("{0} {1}", currentPrefix, currentResult);
+			return result.Substring(0, Math.Min(result.Length, maxLength));
 		}
 
 		public void WriteToDriver(long equipmentId, EquipmentStateValidationResult validationResult)
@@ -167,9 +244,10 @@ namespace Xtensive.Project109.Host.DPA
 
 			var validationMsg = GetMessage(validationResult);
 			var result = ((int)validationResult.Result) == 2 ? 2 : 3;
+			logger.Info("Validation message: " + validationMsg);
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
 			if (!string.IsNullOrEmpty(validationMsg)) {
-				driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg.Substring(0, Math.Min(100, validationMsg.Length)) });
+				driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg });
 			}
 			else {
 				driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { "Validation OK" });
@@ -185,6 +263,17 @@ namespace Xtensive.Project109.Host.DPA
 			}
 			System.IO.File.WriteAllText(destination, data);
 		}
+	}
+
+	public class EquipmentStateValidationResultTemp
+	{
+		//TODO: This class was required because TimeStamp of EquipmentStateValidationResult was internal.
+		//It can be removed after Timestamp became public
+		public DateTimeOffset TimeStamp { get; set; }
+		public string Equipment { get; set; }
+		public EquipmentValidationResult Result { get; set; }
+		public string ResultDescription { get; set; }
+		public ControlProgramValidationResult[] ControlProgramsValidations { get; set; }
 	}
 
 	public static class Ex

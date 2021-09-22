@@ -46,9 +46,15 @@ namespace Xtensive.Project109.Host.DPA
 				return false;
 			}
 
-			var previousValue = x.OldValue == null ? string.Empty : ExtractValue(x.OldValue);
-			var newValue = ExtractValue(x.NewValue);
-			return previousValue != newValue && newValue == ZF_Config.VALIDATION_TRIGGER_VALUE;
+			try {
+				var previousValue = x.OldValue == null ? string.Empty : ExtractValue(x.OldValue);
+				var newValue = ExtractValue(x.NewValue);
+				return previousValue != newValue && newValue == ZF_Config.VALIDATION_TRIGGER_VALUE;
+			}
+			catch (Exception ex) {
+				logger.Error(ex);
+				return false;
+			}
 		}
 
 		private string ExtractValue(EventInfo eventInfo)
@@ -62,12 +68,15 @@ namespace Xtensive.Project109.Host.DPA
 				return;
 			}
 
-			var equipment = Query.All<Equipment>()
+			var equipments = Query.All<Equipment>()
 				.Where(x => x.DriverIdentifier == obj.NewValue.DriverIdentifier)
 				.Select(x => new { x.Id, x.Name })
-				.Single();
-			logger.Info(string.Format("Trigger fired for event '{0}'({1}) of equipment '{2}'({3}) with value = '{4}'", obj.NewValue.EventName, obj.NewValue.EventIdentifier, equipment.Name, equipment.Id, ExtractValue(obj.NewValue)));
-			OnSignal(Tuple.Create(equipment.Id, 1));
+				.ToArray();
+
+			foreach (var equipment in equipments) {
+				logger.Info(string.Format("Trigger fired for event '{0}'({1}) of equipment '{2}'({3}) with value = '{4}'", obj.NewValue.EventName, obj.NewValue.EventIdentifier, equipment.Name, equipment.Id, ExtractValue(obj.NewValue)));
+				OnSignal(Tuple.Create(equipment.Id, 1));
+			}
 		}
 	}
 }
