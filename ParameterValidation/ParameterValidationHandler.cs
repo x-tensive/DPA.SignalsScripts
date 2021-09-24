@@ -37,7 +37,7 @@ namespace Xtensive.Project109.Host.DPA
 				return;
 			}
 
-			var invalidResult = new EquipmentStateValidationResultTemp {
+			var invalidResult = new EquipmentStateValidationResult {
 				Equipment = validationResult.Equipment,
 				Result = validationResult.Result,
 				ResultDescription = validationResult.ResultDescription,
@@ -143,8 +143,21 @@ namespace Xtensive.Project109.Host.DPA
 					.WithColumn("Value", x => x.Value)
 				);
 
+			var aggregatedResults = validationResult
+				.ControlProgramsValidations
+				.Take(1)
+				.AsDataTable("Kehren_response", cfg => cfg
+					.WithColumn("Timestamp", x => validationResult.TimeStamp.DateTime)
+					.WithColumn("Program-name", x => x.ControlProgram)
+					.WithColumn("Subprogram-name", x => x.Subprogram)
+					.WithColumn("Machine", x => validationResult.Equipment)
+					.WithColumn("Message", x => GetMessage(validationResult))
+					.WithColumn("Validation", x => GetResultAsInt(validationResult))
+				);
+			
 			await WriteAsync(invalidResults);
 			await WriteAsync(allResults);
+			await WriteAsync(aggregatedResults);
 		}
 
 		private async Task WriteAsync(DataTable data)
@@ -210,7 +223,7 @@ namespace Xtensive.Project109.Host.DPA
 				.ToArray();
 
 			if (!messages.Any()) {
-				return string.Empty;
+				return "Parameter validation OK";
 			}
 
 			var maxLength = 100;
@@ -235,6 +248,11 @@ namespace Xtensive.Project109.Host.DPA
 			return result.Substring(0, Math.Min(result.Length, maxLength));
 		}
 
+		private int GetResultAsInt(EquipmentStateValidationResult validationResult)
+		{
+			return ((int)validationResult.Result) == 2 ? 2 : 3;
+		}
+
 		public void WriteToDriver(long equipmentId, EquipmentStateValidationResult validationResult)
 		{
 			var equipment = Query.Single<Equipment>(equipmentId);
@@ -243,7 +261,7 @@ namespace Xtensive.Project109.Host.DPA
 			var driverManager = managerResolver.GetChannelManager(serverName);
 
 			var validationMsg = GetMessage(validationResult);
-			var result = ((int)validationResult.Result) == 2 ? 2 : 3;
+			var result = GetResultAsInt(validationResult);
 			logger.Info("Validation message: " + validationMsg);
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
 			if (!string.IsNullOrEmpty(validationMsg)) {
@@ -263,17 +281,6 @@ namespace Xtensive.Project109.Host.DPA
 			}
 			System.IO.File.WriteAllText(destination, data);
 		}
-	}
-
-	public class EquipmentStateValidationResultTemp
-	{
-		//TODO: This class was required because TimeStamp of EquipmentStateValidationResult was internal.
-		//It can be removed after Timestamp became public
-		public DateTimeOffset TimeStamp { get; set; }
-		public string Equipment { get; set; }
-		public EquipmentValidationResult Result { get; set; }
-		public string ResultDescription { get; set; }
-		public ControlProgramValidationResult[] ControlProgramsValidations { get; set; }
 	}
 
 	public static class Ex
