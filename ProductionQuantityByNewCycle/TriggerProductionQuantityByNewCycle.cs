@@ -64,7 +64,7 @@ namespace Xtensive.Project109.Host.DPA
 					var jobCurrent = Query.Single<ProductionJob>(dto.Job.Id);
 					if (cycleRuns != null && jobCurrent.JobTechnology.CycleRuns != null && jobCurrent.JobTechnology.CycleRuns.Count > cycleRuns.Length) {
 						if (dto.Job.EquipmentId != null)
-							Handler(dto.Job.EquipmentId.Value, 0, 1, 0);
+							Handler(dto.Job.EquipmentId.Value, jobCurrent.Id, 0, 1, 0);
 					}
 					ActiveJobs[dto.Job.Id] = jobCurrent.JobTechnology.CycleRuns.ToArray();
 				}
@@ -76,12 +76,13 @@ namespace Xtensive.Project109.Host.DPA
 			});
 		}
 
-		private void Handler(long equipmentId, decimal accepted, decimal undefined, decimal rejected)
+		private void Handler(long equipmentId, long jobId, decimal accepted, decimal undefined, decimal rejected)
 		{
 			logger.Info(equipmentId);
 
 			OnSignal(new ProductionQuantityByNewCycle {
 				EquipmentId = equipmentId,
+				JobId = jobId,
 				QuantityModel = new QuantityModel(accepted, undefined, rejected)
 			});
 		}
