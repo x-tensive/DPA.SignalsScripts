@@ -23,10 +23,8 @@ namespace Xtensive.Project109.Host.DPA
 
 			if (args.Obj is ProductionQuantityByNewCycle) {
 				var productionQuantity = (ProductionQuantityByNewCycle)args.Obj;
-				var job = jobService.GetActiveProduction(productionQuantity.EquipmentId);
-				if (job != null) {
-					jobService.AppendQuantity(job.Id, productionQuantity.QuantityModel, Array.Empty<OperatorComponentConsumptionDto>(), "signals2", null, DateTimeOffset.UtcNow, null);
-				}
+				var jobId = productionQuantity.JobId;
+				jobService.AppendQuantity(jobId, productionQuantity.QuantityModel, Array.Empty<OperatorComponentConsumptionDto>(), "signals2", null, DateTimeOffset.UtcNow, null);
 			}
 			return Task.CompletedTask;
 		}
