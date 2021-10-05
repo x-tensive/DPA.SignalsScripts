@@ -13,6 +13,7 @@ using Xtensive.Project109.Host.Base;
 using System.Data;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using Xtensive.DPA.Host.Localization;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -176,14 +177,29 @@ namespace Xtensive.Project109.Host.DPA
 			}
 		}
 
+		private void ShortenValidationMessages(EquipmentStateValidationResult validationResult)
+		{
+			validationResult
+				.ControlProgramsValidations
+				.SelectMany(x => x.SetsValidation)
+				.SelectMany(x => x.ParametersValidation)
+				.ToList()
+				.ForEach(x => x.ResultDescription = BuildMessage(x));
+		}
+
 		public override async Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
 			var triggeredBy = (Tuple<long, int>)args.Obj;
 			var equipmentId = triggeredBy.Item1;
 			var channel = triggeredBy.Item2;
 
-			var validationResult = executor.ExecuteRead(programService => programService.ValidateEquipmentState(equipmentId, channel));
+			var validationResult = executor.ExecuteRead(programService => {
+				using (var loc = new DPALocalizationScope(new System.Globalization.CultureInfo("nl-BE"))) {
+					return programService.ValidateEquipmentState(equipmentId, channel);
+				}
+			});
 
+			ShortenValidationMessages(validationResult);
 			LogValidationResult(validationResult);
 			WriteToDriver(equipmentId, validationResult);
 			await WriteToDatabaseAsync(equipmentId, validationResult);
@@ -209,22 +225,20 @@ namespace Xtensive.Project109.Host.DPA
 
 		private string GetMessage(EquipmentStateValidationResult validationResult)
 		{
+			if (validationResult.Result == EquipmentValidationResult.Valid) {
+				return validationResult.ResultDescription;
+			}
 			var messages = validationResult
 				.ControlProgramsValidations
 				.SelectMany(controlProgram => controlProgram
 					.SetsValidation
-					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { ResultDescription = BuildMessage(x), Order = x.parameter.Id }))
+					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { x.ResultDescription, Order = x.parameter.Id }))
 					.Concat(new[] { new { controlProgram.ResultDescription, Order = -1L } })
 				)
 				.Concat(new[] { new { validationResult.ResultDescription, Order = -2L } })
-				.Where(x => !string.IsNullOrEmpty(x.ResultDescription))
 				.OrderBy(x => x.Order)
 				.Select(x => x.ResultDescription)
 				.ToArray();
-
-			if (!messages.Any()) {
-				return "Parameter validation OK";
-			}
 
 			var maxLength = 100;
 			var currentResult = messages.First();
@@ -264,12 +278,7 @@ namespace Xtensive.Project109.Host.DPA
 			var result = GetResultAsInt(validationResult);
 			logger.Info("Validation message: " + validationMsg);
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
-			if (!string.IsNullOrEmpty(validationMsg)) {
-				driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg });
-			}
-			else {
-				driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { "Validation OK" });
-			}
+			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg == null ? string.Empty: validationMsg });
 		}
 
 		private void Write(string data)
