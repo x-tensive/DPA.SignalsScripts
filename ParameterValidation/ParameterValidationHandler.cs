@@ -155,7 +155,7 @@ namespace Xtensive.Project109.Host.DPA
 					.WithColumn("Message", x => GetMessage(validationResult))
 					.WithColumn("Validation", x => GetResultAsInt(validationResult))
 				);
-			
+
 			await WriteAsync(invalidResults);
 			await WriteAsync(allResults);
 			await WriteAsync(aggregatedResults);
@@ -232,21 +232,26 @@ namespace Xtensive.Project109.Host.DPA
 				.ControlProgramsValidations
 				.SelectMany(controlProgram => controlProgram
 					.SetsValidation
-					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { x.ResultDescription, Order = x.parameter.Id }))
-					.Concat(new[] { new { controlProgram.ResultDescription, Order = -1L } })
+					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { x.ResultDescription, Order = x.parameter.Id, x.Result }))
+					.Concat(new[] { new { controlProgram.ResultDescription, Order = -1L, controlProgram.Result } })
 				)
-				.Concat(new[] { new { validationResult.ResultDescription, Order = -2L } })
+				.Concat(new[] { new { validationResult.ResultDescription, Order = -2L, validationResult.Result } })
+				.Where(x => x.Result != EquipmentValidationResult.Valid && !string.IsNullOrEmpty(x.ResultDescription))
 				.OrderBy(x => x.Order)
 				.Select(x => x.ResultDescription)
 				.ToArray();
 
+			if (!messages.Any()) {
+				return string.Empty;
+			}
+
 			var maxLength = 100;
 			var currentResult = messages.First();
-			var currentPrefix = string.Format("[1 of {0}]", messages.Length);
+			var currentPrefix = string.Format("[1/{0}]", messages.Length);
 			var currentCount = 1;
 
 			foreach (var message in messages.Skip(1)) {
-				var tempPrefix = string.Format("[{0} of {1}]", currentCount + 1, messages.Length);
+				var tempPrefix = string.Format("[{0}/{1}]", currentCount + 1, messages.Length);
 				var tempResult = string.Format("{0}, {1}", currentResult, message);
 
 				if (string.Format("{0} {1}", tempPrefix, tempResult).Length > maxLength) {
@@ -278,7 +283,7 @@ namespace Xtensive.Project109.Host.DPA
 			var result = GetResultAsInt(validationResult);
 			logger.Info("Validation message: " + validationMsg);
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
-			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg == null ? string.Empty: validationMsg });
+			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg == null ? string.Empty : validationMsg });
 		}
 
 		private void Write(string data)
