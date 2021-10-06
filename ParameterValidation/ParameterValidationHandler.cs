@@ -269,7 +269,14 @@ namespace Xtensive.Project109.Host.DPA
 
 		private int GetResultAsInt(EquipmentStateValidationResult validationResult)
 		{
-			return ((int)validationResult.Result) == 2 ? 2 : 3;
+			switch (validationResult.Result) {
+				case EquipmentValidationResult.Valid:
+					return 2;
+				case EquipmentValidationResult.Invalid:
+					return 3;
+				default:
+					return 4;
+			}
 		}
 
 		public void WriteToDriver(long equipmentId, EquipmentStateValidationResult validationResult)
