@@ -14,6 +14,7 @@ using System.Data;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using Xtensive.DPA.Host.Localization;
+using System.Globalization;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -60,7 +61,8 @@ namespace Xtensive.Project109.Host.DPA
 								ParametersValidation = setValidation
 									.ParametersValidation
 									.Where(p => p.Result != EquipmentValidationResult.Valid)
-									.ToArray()
+									.ToArray(),
+								ResultDescription = string.Empty
 							})
 							.ToArray()
 					})
@@ -107,11 +109,11 @@ namespace Xtensive.Project109.Host.DPA
 						{
 							Result = parameterValidation.Result,
 							Timestamp = validationResult.TimeStamp,
-							Machine = validationResult.Equipment,
-							Parameter = parameterValidation.parameter.Name,
-							Subprogram = programValidation.Subprogram,
-							Program = programValidation.ControlProgram,
-							Value = parameterValidation.CurrentValue,
+							Machine = validationResult.Equipment == null ? string.Empty : validationResult.Equipment,
+							Parameter = parameterValidation.parameter == null || parameterValidation.parameter.Name == null ? string.Empty : parameterValidation.parameter.Name,
+							Subprogram = programValidation.Subprogram == null ? string.Empty : programValidation.Subprogram,
+							Program = programValidation.ControlProgram == null ? string.Empty : programValidation.ControlProgram,
+							Value = parameterValidation.CurrentValue == null ? 0D : parameterValidation.CurrentValue,
 							LmNumber = lmNumber,
 							MinValue = parameterValidation.parameter.Min,
 							MaxValue = parameterValidation.parameter.Max,
@@ -146,6 +148,8 @@ namespace Xtensive.Project109.Host.DPA
 
 			var aggregatedResults = validationResult
 				.ControlProgramsValidations
+				.Select(x => new { x.ControlProgram, x.Subprogram })
+				.DefaultIfEmpty(new { ControlProgram = string.Empty, Subprogram = string.Empty })
 				.Take(1)
 				.AsDataTable("Kehren_response", cfg => cfg
 					.WithColumn("Timestamp", x => validationResult.TimeStamp.DateTime)
@@ -193,11 +197,10 @@ namespace Xtensive.Project109.Host.DPA
 			var equipmentId = triggeredBy.Item1;
 			var channel = triggeredBy.Item2;
 
-			var validationResult = executor.ExecuteRead(programService => {
-				using (var loc = new DPALocalizationScope(new System.Globalization.CultureInfo("nl-BE"))) {
-					return programService.ValidateEquipmentState(equipmentId, channel);
-				}
-			});
+			EquipmentStateValidationResult validationResult;
+			using (new DPALocalizationScope(CultureInfo.GetCultureInfo("nl-BE"))) {
+				validationResult = executor.ExecuteRead(programService => programService.ValidateEquipmentState(equipmentId, channel));
+			}
 
 			ShortenValidationMessages(validationResult);
 			LogValidationResult(validationResult);
@@ -232,12 +235,13 @@ namespace Xtensive.Project109.Host.DPA
 				.ControlProgramsValidations
 				.SelectMany(controlProgram => controlProgram
 					.SetsValidation
-					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { x.ResultDescription, Order = x.parameter.Id, x.Result }))
-					.Concat(new[] { new { controlProgram.ResultDescription, Order = -1L, controlProgram.Result } })
+					.SelectMany(parametersSet => parametersSet.ParametersValidation.Select(x => new { x.ResultDescription, Order = 0, x.Result }))
+					.Concat(new[] { new { controlProgram.ResultDescription, Order = 1, controlProgram.Result } })
 				)
-				.Concat(new[] { new { validationResult.ResultDescription, Order = -2L, validationResult.Result } })
+				.Concat(new[] { new { validationResult.ResultDescription, Order = 2, validationResult.Result } })
 				.Where(x => x.Result != EquipmentValidationResult.Valid && !string.IsNullOrEmpty(x.ResultDescription))
-				.OrderBy(x => x.Order)
+				.OrderBy(x => x.Result == EquipmentValidationResult.Invalid ? 1 : 2)
+				.ThenBy(x => x.Order)
 				.Select(x => x.ResultDescription)
 				.ToArray();
 
