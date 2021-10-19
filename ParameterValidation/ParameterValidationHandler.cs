@@ -307,44 +307,4 @@ namespace Xtensive.Project109.Host.DPA
 			System.IO.File.WriteAllText(destination, data);
 		}
 	}
-
-	public static class Ex
-	{
-		public static DataTable AsDataTable<T>(this IEnumerable<T> source, string tableName, Func<Builder<T>, Builder<T>> cfg)
-		{
-			var result = cfg(new Builder<T>()).WithData(source.ToArray());
-			result.TableName = tableName;
-			return result;
-		}
-	}
-
-	public class Builder<TSource>
-	{
-		private readonly DataTable table;
-		private Dictionary<string, Func<TSource, object>> Selectors = new Dictionary<string, Func<TSource, object>>();
-
-		public Builder()
-		{
-			this.table = new DataTable();
-		}
-
-		public Builder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue> selector)
-		{
-			Selectors[name] = x => selector(x);
-			table.Columns.Add(name, typeof(TValue));
-			return this;
-		}
-
-		public DataTable WithData(TSource[] values)
-		{
-			foreach (var item in values) {
-				var newRow = table.NewRow();
-				foreach (var selector in Selectors) {
-					newRow[selector.Key] = selector.Value(item);
-				}
-				table.Rows.Add(newRow);
-			}
-			return table;
-		}
-	}
 }
