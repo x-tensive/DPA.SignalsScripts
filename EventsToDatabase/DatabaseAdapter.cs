@@ -52,6 +52,22 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts
 		}
 
 		public DataTableBuilder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue> selector)
+			where TValue : struct
+		{
+			Selectors[name] = x => selector(x);
+			table.Columns.Add(name, typeof(TValue));
+			return this;
+		}
+
+		public DataTableBuilder<TSource> WithColumn(string name, Func<TSource, string> selector)
+		{
+			Selectors[name] = x => selector(x);
+			table.Columns.Add(name, typeof(string));
+			return this;
+		}
+
+		public DataTableBuilder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue?> selector)
+			where TValue : struct
 		{
 			Selectors[name] = x => selector(x);
 			table.Columns.Add(name, typeof(TValue));

@@ -11,14 +11,24 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts
 		public const int MAX_GUD_VALUE_LENGTH = 200;
 
 		public static readonly HashSet<Guid> DriversForMonitoring = new HashSet<Guid>(new[] {
-			Guid.NewGuid()
+			Guid.Parse("12457ce5-5034-47d7-a262-762379568b80"), //Monitoring -> Drivers -> Driver -> Driver identifier
+			Guid.Parse("12457ce5-5034-47d7-a262-762379568b81")
 		});
 
-		public static readonly Dictionary<string, Func<SharedEventInfo, string, DataTable>> TableBuilders =
-			new Dictionary<string, Func<SharedEventInfo, string, DataTable>> {
-				["Rpa"] = BuildRpaTable,
-				["GUD"] = BuildGudTable,
-				["Linshift"] = BuildLinshiftTable
+		public static readonly Dictionary<Guid, Func<SharedEventInfo, string, DataTable>> TableBuilders =
+			new Dictionary<Guid, Func<SharedEventInfo, string, DataTable>> {
+				{
+					Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa95"), //Monitoring -> Drivers -> Driver -> Events -> Event -> Event identifier
+					BuildRpaTable
+				},
+				{
+					Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa91"), 
+					BuildGudTable
+				},
+				{
+					Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa92"), 
+					BuildLinshiftTable
+				}
 			};
 
 
@@ -42,7 +52,7 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts
 				})
 				.AsDataTable("Rpa", schema => schema
 					.WithColumn("Value", x => x.Value)
-					.WithColumn("Timestamp", x => x.Timestamp)
+					.WithColumn("Timestamp", x => x.Timestamp.DateTime)
 					.WithColumn("Parameter", x => x.Parameter)
 					.WithColumn("Machine", x => x.Machine)
 				);
@@ -60,7 +70,7 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts
 				})
 				.AsDataTable("Linshift", schema => schema
 					.WithColumn("Value", x => x.Value)
-					.WithColumn("Timestamp", x => x.Timestamp)
+					.WithColumn("Timestamp", x => x.Timestamp.DateTime)
 					.WithColumn("Parameter", x => x.Parameter)
 					.WithColumn("Machine", x => x.Machine)
 				);
@@ -71,14 +81,14 @@ namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts
 			return eventInfo.EventInfo.Names
 				.Select((fieldName, index) => new
 				{
-					Value = eventInfo.EventInfo.Values[index]?.ToString(),
+					Value = eventInfo.EventInfo.Values[index],
 					Parameter = fieldName,
 					Machine = workcenterName,
 					Timestamp = eventInfo.TimeStamp,
 				})
 				.AsDataTable("GUD", schema => schema
-					.WithColumn("Value", x => x.Value == null ? null : new string(x.Value.Take(MAX_GUD_VALUE_LENGTH).ToArray()))
-					.WithColumn("Timestamp", x => x.Timestamp)
+					.WithColumn("Value", x => x.Value == null ? null : new string(x.Value.ToString().Take(MAX_GUD_VALUE_LENGTH).ToArray()))
+					.WithColumn("Timestamp", x => x.Timestamp.DateTime)
 					.WithColumn("Parameter", x => x.Parameter)
 					.WithColumn("Machine", x => x.Machine)
 				);
