@@ -4,7 +4,7 @@ using System.Data;
 using System.Linq;
 using Xtensive.DPA.EventManager;
 
-namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts.EventsToDatabase
+namespace Xtensive.Project109.Host.DPA
 {
 	public static class EventsToDatabaseConfig
 	{

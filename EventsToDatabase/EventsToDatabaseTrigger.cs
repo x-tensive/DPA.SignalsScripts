@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Xtensive.DPA.EventManager;
 using Xtensive.Project109.Host.Base;
 
-namespace Xtensive.Project109.Host.DPA.Tests.Signals2.Scripts.DPA.SignalsScripts.EventsToDatabase
+namespace Xtensive.Project109.Host.DPA
 {
 	public class EventsToDatabaseTrigger : Signals2TriggerBase
 	{

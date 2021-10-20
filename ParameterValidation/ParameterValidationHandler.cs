@@ -11,7 +11,6 @@ using Xtensive.DPA.Contracts;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
 using System.Data;
-using System.Collections.Generic;
 using System.Data.SqlClient;
 using Xtensive.DPA.Host.Localization;
 using System.Globalization;
@@ -89,6 +88,14 @@ namespace Xtensive.Project109.Host.DPA
 			});
 		}
 
+		private static double? AsNullableDouble(object sourceValue)
+		{
+			if (sourceValue == null) {
+				return null;
+			}
+			return IndicatorSimpleModel.GetDoubleValue(sourceValue);
+		}
+
 		private async Task WriteToDatabaseAsync(long equipmentId, EquipmentStateValidationResult validationResult)
 		{
 			var lmNumber = string.Empty;
@@ -113,7 +120,7 @@ namespace Xtensive.Project109.Host.DPA
 							Parameter = parameterValidation.parameter == null || parameterValidation.parameter.Name == null ? string.Empty : parameterValidation.parameter.Name,
 							Subprogram = programValidation.Subprogram == null ? string.Empty : programValidation.Subprogram,
 							Program = programValidation.ControlProgram == null ? string.Empty : programValidation.ControlProgram,
-							Value = parameterValidation.CurrentValue == null ? 0D : parameterValidation.CurrentValue,
+							Value = AsNullableDouble(parameterValidation.CurrentValue),
 							LmNumber = lmNumber,
 							MinValue = parameterValidation.parameter.Min,
 							MaxValue = parameterValidation.parameter.Max,
@@ -242,6 +249,7 @@ namespace Xtensive.Project109.Host.DPA
 				.Where(x => x.Result != EquipmentValidationResult.Valid && !string.IsNullOrEmpty(x.ResultDescription))
 				.OrderBy(x => x.Result == EquipmentValidationResult.Invalid ? 1 : 2)
 				.ThenBy(x => x.Order)
+				.ThenBy(x => x.ResultDescription.Length)
 				.Select(x => x.ResultDescription)
 				.ToArray();
 
