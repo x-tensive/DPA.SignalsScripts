@@ -10,27 +10,29 @@ namespace Xtensive.Project109.Host.DPA
 	{
 		public const int MAX_GUD_VALUE_LENGTH = 200;
 
-		public static readonly HashSet<Guid> DriversForMonitoring = new HashSet<Guid>(new[] {
-			Guid.Parse("12457ce5-5034-47d7-a262-762379568b80"), //Monitoring -> Drivers -> Driver -> Driver identifier
-			Guid.Parse("12457ce5-5034-47d7-a262-762379568b81")
-		});
+		public const string TriggerEventName = "";
+		public const string TriggerValueName = "";
+		public const object TriggerExpectedValue = 1;
 
-		public static readonly Dictionary<Guid, Func<SharedEventInfo, string, DataTable>> TableBuilders =
-			new Dictionary<Guid, Func<SharedEventInfo, string, DataTable>> {
+		public static readonly Dictionary<Guid, Dictionary<Guid, Func<SharedEventInfo, string, DataTable>>> TableBuilders =
+			new Dictionary<Guid, Dictionary<Guid, Func<SharedEventInfo, string, DataTable>>> {
 				{
-					Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa95"), //Monitoring -> Drivers -> Driver -> Events -> Event -> Event identifier
-					BuildRpaTable
-				},
-				{
-					Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa91"), 
-					BuildGudTable
-				},
-				{
-					Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa92"), 
-					BuildLinshiftTable
+					Guid.Parse("12457ce5-5034-47d7-a262-762379568b80"), new Dictionary<Guid, Func<SharedEventInfo, string, DataTable>> {
+						{
+							Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa95"), //Monitoring -> Drivers -> Driver -> Events -> Event -> Event identifier
+							BuildRpaTable
+						},
+						{
+							Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa91"),
+							BuildGudTable
+						},
+						{
+							Guid.Parse("7b966f67-28c8-49f6-ac9f-bbefa34cfa92"),
+							BuildLinshiftTable
+						}
+					}
 				}
 			};
-
 
 		private static double? AsNullableDouble(object sourceValue)
 		{
