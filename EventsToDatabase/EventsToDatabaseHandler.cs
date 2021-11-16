@@ -12,6 +12,7 @@ namespace Xtensive.Project109.Host.DPA
 	public class EventsToDatabaseHandler : Signals2HandlerBase
 	{
 		private readonly DatabaseAdapter dbAdapter = new DatabaseAdapter(EventsToDatabaseSensitiveConfig.TARGET_DATABASE_CONNECTION);
+		private readonly IEventSource eventSource;
 
 		public override async Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
@@ -24,10 +25,19 @@ namespace Xtensive.Project109.Host.DPA
 			Dictionary<Guid, Func<SharedEventInfo, string, DataTable>> builders;
 			if (EventsToDatabaseConfig.TableBuilders.TryGetValue(newEvent.DriverIdentifier, out builders)){
 				foreach (var builder in builders) {
-					var table = builder.Value(newEvent, workcenterName);
+					var lastEvent = eventSource
+						.PreviousEventsOf<SharedEventInfo>()
+						.Where(x => x.EventIdentifier == builder.Key)
+						.FirstOrDefault();
+					var table = builder.Value(lastEvent, workcenterName);
 					await  dbAdapter.WriteAsync(table);
 				}
 			}
+		}
+
+		public EventsToDatabaseHandler(IEventSource eventSource)
+		{
+			this.eventSource = eventSource;
 		}
 	}
 }
