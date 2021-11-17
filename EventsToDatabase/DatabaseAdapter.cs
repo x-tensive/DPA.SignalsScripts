@@ -54,7 +54,13 @@ namespace Xtensive.Project109.Host.DPA
 		public DataTableBuilder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue> selector)
 			where TValue : struct
 		{
-			Selectors[name] = x => selector(x);
+			Selectors[name] = x => {
+				var value = selector(x) as object;
+				if (value == null) {
+					return DBNull.Value;
+				}
+				return value;
+			};
 			table.Columns.Add(name, typeof(TValue));
 			return this;
 		}
