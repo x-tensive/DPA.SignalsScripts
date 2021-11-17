@@ -1,5 +1,4 @@
 using DPA.Adapter.Contracts;
-using DPA.Adapter.Contracts.Compare;
 using System;
 using System.Linq;
 using System.Reactive.Linq;
@@ -49,13 +48,13 @@ namespace Xtensive.Project109.Host.DPA
 				return false;
 			}
 
-			if (changedData.NewValue.EventName != EventsToDatabaseConfig.TriggerEventName) {
+			if (changedData.NewValue.EventIdentifier != Guid.Parse(EventsToDatabaseConfig.TriggerEventName)) {
 				return false;
 			}
 
 			var oldValue = changedData.OldValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
 			var newValue = changedData.NewValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
-			if (oldValue != newValue && newValue == EventsToDatabaseConfig.TriggerExpectedValue) {
+			if (!Object.Equals(oldValue, newValue) && Object.Equals(newValue, EventsToDatabaseConfig.TriggerExpectedValue)) {
 				return true;
 			}
 
