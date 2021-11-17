@@ -51,23 +51,28 @@ namespace Xtensive.Project109.Host.DPA
 			table = new DataTable();
 		}
 
-		public DataTableBuilder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue> selector)
-			where TValue : struct
+		private Func<TSource, object> GetNullableValue<T>(Func<TSource, T> selector)
 		{
-			Selectors[name] = x => {
-				var value = selector(x) as object;
+			return x => {
+				var value = (object)selector(x);
 				if (value == null) {
 					return DBNull.Value;
 				}
 				return value;
 			};
+		}
+
+		public DataTableBuilder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue> selector)
+			where TValue : struct
+		{
+			Selectors[name] = GetNullableValue(selector);
 			table.Columns.Add(name, typeof(TValue));
 			return this;
 		}
 
 		public DataTableBuilder<TSource> WithColumn(string name, Func<TSource, string> selector)
 		{
-			Selectors[name] = x => selector(x);
+			Selectors[name] = GetNullableValue(selector);
 			table.Columns.Add(name, typeof(string));
 			return this;
 		}
@@ -75,7 +80,7 @@ namespace Xtensive.Project109.Host.DPA
 		public DataTableBuilder<TSource> WithColumn<TValue>(string name, Func<TSource, TValue?> selector)
 			where TValue : struct
 		{
-			Selectors[name] = x => selector(x);
+			Selectors[name] = GetNullableValue(selector);
 			table.Columns.Add(name, typeof(TValue));
 			return this;
 		}
