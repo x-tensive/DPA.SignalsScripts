@@ -1,5 +1,4 @@
 using DPA.Adapter.Contracts;
-using DPA.Adapter.Contracts.Compare;
 using System;
 using System.Linq;
 using System.Reactive.Linq;
@@ -14,7 +13,6 @@ namespace Xtensive.Project109.Host.DPA
 		private readonly IEventSource eventSource;
 		private readonly IHostLog<EventsToDatabaseTrigger> logger;
 		private IDisposable subscription;
-		private readonly SharedEventInfoComparator comparator = new SharedEventInfoComparator();
 
 		public EventsToDatabaseTrigger(IEventSource eventSource, IHostLog<EventsToDatabaseTrigger> logger)
 		{
@@ -45,15 +43,22 @@ namespace Xtensive.Project109.Host.DPA
 			if (changedData == null || changedData.NewValue == null || changedData.NewValue.EventInfo == null) {
 				return false;
 			}
-			
-			if (!EventsToDatabaseConfig.DriversForMonitoring.Contains(changedData.NewValue.DriverIdentifier)) {
+
+			if (!EventsToDatabaseConfig.TableBuilders.ContainsKey(changedData.NewValue.DriverIdentifier)) {
 				return false;
 			}
 
-			if (!EventsToDatabaseConfig.TableBuilders.ContainsKey(changedData.NewValue.EventIdentifier)) {
+			if (changedData.NewValue.EventIdentifier != Guid.Parse(EventsToDatabaseConfig.TriggerEventName)) {
 				return false;
 			}
-			return !comparator.AreEqual(changedData.OldValue, changedData.NewValue);
+
+			var oldValue = changedData.OldValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
+			var newValue = changedData.NewValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
+			if (!Object.Equals(oldValue, newValue) && Object.Equals(newValue, EventsToDatabaseConfig.TriggerExpectedValue)) {
+				return true;
+			}
+
+			return false;
 		}
 
 		public override Task StopAsync()
