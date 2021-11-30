@@ -40,22 +40,27 @@ namespace Xtensive.Project109.Host.DPA
 
 		private bool RequiresToSave(ObjectChanged<SharedEventInfo> changedData)
 		{
-			if (changedData == null || changedData.NewValue == null || changedData.NewValue.EventInfo == null) {
-				return false;
-			}
+			try {
+				if (changedData == null || changedData.NewValue == null || changedData.NewValue.EventInfo == null) {
+					return false;
+				}
 
-			if (!EventsToDatabaseConfig.TableBuilders.ContainsKey(changedData.NewValue.DriverIdentifier)) {
-				return false;
-			}
+				if (!EventsToDatabaseConfig.TableBuilders.ContainsKey(changedData.NewValue.DriverIdentifier)) {
+					return false;
+				}
 
-			if (changedData.NewValue.EventIdentifier != Guid.Parse(EventsToDatabaseConfig.TriggerEventName)) {
-				return false;
-			}
+				if (changedData.NewValue.EventIdentifier != Guid.Parse(EventsToDatabaseConfig.TriggerEventName)) {
+					return false;
+				}
 
-			var oldValue = changedData.OldValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
-			var newValue = changedData.NewValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
-			if (!Object.Equals(oldValue, newValue) && Object.Equals(newValue, EventsToDatabaseConfig.TriggerExpectedValue)) {
-				return true;
+				var oldValue = changedData.OldValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
+				var newValue = changedData.NewValue.GetFieldValue(EventsToDatabaseConfig.TriggerValueName);
+				if (!object.Equals(oldValue, newValue) && object.Equals(newValue, EventsToDatabaseConfig.TriggerExpectedValue)) {
+					return true;
+				}
+			}
+			catch (Exception ex) {
+				logger.Error(ex);
 			}
 
 			return false;
