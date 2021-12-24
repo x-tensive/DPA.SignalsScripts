@@ -1,11 +1,9 @@
+using System;
+
 namespace Xtensive.Project109.Host.DPA
 {
 	public static class ZF_Config
 	{
-		//Database connection string for storing validation results
-		public const string TARGET_DATABASE_CONNECTION = @"Data Source=.\; Initial Catalog=ZF_Test;Integrated Security=True;";
-		//@"Data Source=.\; Initial Catalog=ZF_Test;User ID=UserName;Password=Password";
-
 		public const string LM_NUMBER_FIELD = "LMNUMMER";
 		public const string LM_NUMBER_STATE = "GUD5";
 
@@ -21,7 +19,12 @@ namespace Xtensive.Project109.Host.DPA
 		//Windows folder for storing validation results
 		public const string LOG_DESTINATION = @"D:\Logs\Momentum Data";
 
+		public static readonly Guid VALIDATION_TRIGGER_EVENT_ID = Guid.Parse("fef321ed-6a5e-4538-afb8-711bfee7351e");
+		public const int VALIDATION_CHANNEL = 1;
 		public const string VALIDATION_TRIGGER = "VALIDATIE";
 		public const string VALIDATION_TRIGGER_VALUE = "1";
+
+		//in milliseconds (1 sec = 1000 ms)
+		public const int MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP = 1000;
 	}
 }

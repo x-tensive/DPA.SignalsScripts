@@ -14,6 +14,7 @@ using System.Data;
 using System.Data.SqlClient;
 using Xtensive.DPA.Host.Localization;
 using System.Globalization;
+using System.Threading;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -23,6 +24,8 @@ namespace Xtensive.Project109.Host.DPA
 		private readonly IInScopeExecutor<IControlProgramService> executor;
 		private readonly IDpaChannelManagerResolver managerResolver;
 		private readonly IIndicatorDataService indicatorService;
+
+		private readonly DatabaseAdapter dbAdapter = new DatabaseAdapter(EventsToDatabaseSensitiveConfig.TARGET_DATABASE_CONNECTION);
 
 		public ZFHandler2(IServiceProvider serviceProvider)
 		{
@@ -96,7 +99,7 @@ namespace Xtensive.Project109.Host.DPA
 			return IndicatorSimpleModel.GetDoubleValue(sourceValue);
 		}
 
-		private async Task WriteToDatabaseAsync(long equipmentId, EquipmentStateValidationResult validationResult)
+		private void WriteToDatabase(long equipmentId, EquipmentStateValidationResult validationResult)
 		{
 			var lmNumber = string.Empty;
 			var indicator = indicatorService.GetFor(equipmentId, ZF_Config.LM_NUMBER_STATE, ZF_Config.LM_NUMBER_FIELD);
@@ -117,13 +120,13 @@ namespace Xtensive.Project109.Host.DPA
 							Result = parameterValidation.Result,
 							Timestamp = validationResult.TimeStamp,
 							Machine = validationResult.Equipment == null ? string.Empty : validationResult.Equipment,
-							Parameter = parameterValidation.parameter == null || parameterValidation.parameter.Name == null ? string.Empty : parameterValidation.parameter.Name,
+							Parameter = parameterValidation.Parameter == null || parameterValidation.Parameter.Name == null ? string.Empty : parameterValidation.Parameter.Name,
 							Subprogram = programValidation.Subprogram == null ? string.Empty : programValidation.Subprogram,
 							Program = programValidation.ControlProgram == null ? string.Empty : programValidation.ControlProgram,
 							Value = AsNullableDouble(parameterValidation.CurrentValue),
 							LmNumber = lmNumber,
-							MinValue = parameterValidation.parameter.Min,
-							MaxValue = parameterValidation.parameter.Max,
+							MinValue = parameterValidation.Parameter.Min,
+							MaxValue = parameterValidation.Parameter.Max,
 							Message = parameterValidation.ResultDescription
 						})
 					)
@@ -167,25 +170,9 @@ namespace Xtensive.Project109.Host.DPA
 					.WithColumn("Validation", x => GetResultAsInt(validationResult))
 				);
 
-			await WriteAsync(invalidResults);
-			await WriteAsync(allResults);
-			await WriteAsync(aggregatedResults);
-		}
-
-		private async Task WriteAsync(DataTable data)
-		{
-			var connectionString = ZF_Config.TARGET_DATABASE_CONNECTION;
-
-			using (var connection = new SqlConnection(connectionString)) {
-				await connection.OpenAsync();
-				var bulk = new SqlBulkCopy(connection) {
-					DestinationTableName = data.TableName
-				};
-				foreach (DataColumn column in data.Columns) {
-					bulk.ColumnMappings.Add(new SqlBulkCopyColumnMapping(column.ColumnName, column.ColumnName));
-				}
-				await bulk.WriteToServerAsync(data);
-			}
+			dbAdapter.WriteAsync(invalidResults).Wait();
+			dbAdapter.WriteAsync(allResults).Wait();
+			dbAdapter.WriteAsync(aggregatedResults).Wait();
 		}
 
 		private void ShortenValidationMessages(EquipmentStateValidationResult validationResult)
@@ -198,23 +185,43 @@ namespace Xtensive.Project109.Host.DPA
 				.ForEach(x => x.ResultDescription = BuildMessage(x));
 		}
 
-		public override async Task SignalHandleAsync(Signals2ScriptEventArgs args)
+		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
-			var triggeredBy = (Tuple<long, int>)args.Obj;
+			var triggeredBy = (Tuple<long, int, DateTimeOffset>)args.Obj;
 			var equipmentId = triggeredBy.Item1;
 			var channel = triggeredBy.Item2;
+			var triggerEventTimestamp = triggeredBy.Item3;
+			var validationResult = Validate(equipmentId, channel);
 
-			EquipmentStateValidationResult validationResult;
-			using (new DPALocalizationScope(CultureInfo.GetCultureInfo("nl-BE"))) {
-				validationResult = executor.ExecuteRead(programService => programService.ValidateEquipmentState(equipmentId, channel));
+			var minTimeStamp = validationResult
+				.ControlProgramsValidations
+				.SelectMany(x => x.SetsValidation.SelectMany(s => s.ParametersValidation))
+				.Where(x => x.TimeStamp.HasValue)
+				.Select(x => x.TimeStamp.Value)
+				.DefaultIfEmpty(DateTimeOffset.MinValue)
+				.Min();
+			logger.Info("Min timestamp = " + minTimeStamp + ", result = " + validationResult.Result);
+
+			if (validationResult.Result == EquipmentValidationResult.Unknown || (triggerEventTimestamp - minTimeStamp).TotalMilliseconds >= ZF_Config.MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP) {
+				Task.Delay(ZF_Config.MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP).Wait();
+				validationResult = Validate(equipmentId, channel);
+				logger.Info("Second try" + ", result = " + validationResult.Result);
 			}
 
 			ShortenValidationMessages(validationResult);
 			LogValidationResult(validationResult);
 			WriteToDriver(equipmentId, validationResult);
-			await WriteToDatabaseAsync(equipmentId, validationResult);
-
+			WriteToDatabase(equipmentId, validationResult);
 			//WriteToFolder(validationResult, driverId, driverManager);
+
+			return Task.CompletedTask;
+		}
+
+		private EquipmentStateValidationResult Validate(long equipmentId, int channel)
+		{
+			using (new DPALocalizationScope(CultureInfo.GetCultureInfo("nl-BE"))) {
+				return executor.ExecuteRead(programService => programService.ValidateEquipmentState(equipmentId, channel));
+			}
 		}
 
 		private string BuildMessage(ParameterValidationResult validationResult)
@@ -222,12 +229,12 @@ namespace Xtensive.Project109.Host.DPA
 			if (validationResult.Result == EquipmentValidationResult.Invalid) {
 				return string.Format(
 					"{0} = {1} [{2} - {3}]",
-					string.IsNullOrEmpty(validationResult.parameter.Description)
-						? validationResult.parameter.Name
-						: validationResult.parameter.Description,
+					string.IsNullOrEmpty(validationResult.Parameter.Description)
+						? validationResult.Parameter.Name
+						: validationResult.Parameter.Description,
 					validationResult.CurrentValue,
-					validationResult.parameter.Min,
-					validationResult.parameter.Max
+					validationResult.Parameter.Min,
+					validationResult.Parameter.Max
 				);
 			}
 			return validationResult.ResultDescription;
@@ -301,8 +308,8 @@ namespace Xtensive.Project109.Host.DPA
 			var validationMsg = GetMessage(validationResult);
 			var result = GetResultAsInt(validationResult);
 			logger.Info("Validation message: " + validationMsg);
-			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg == null ? string.Empty : validationMsg });
+			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
 		}
 
 		private void Write(string data)

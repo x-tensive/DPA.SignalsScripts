@@ -26,22 +26,22 @@ namespace Xtensive.Project109.Host.DPA
 				subscription.Dispose();
 			}
 			subscription = eventSource
-				.EventsOf<ObjectChanged<SharedEventInfo>>()
+				.EventsOf<ObjectChanged<EventInfo>>()
 				.Where(RequiresToSave)
 				.Subscribe(Fire);
 			return Task.CompletedTask;
 		}
 
-		private void Fire(ObjectChanged<SharedEventInfo> changedData)
+		private void Fire(ObjectChanged<EventInfo> changedData)
 		{
 			logger.Info(string.Format("Fired for event {0}", changedData.NewValue.EventName));
 			OnSignal(changedData);
 		}
 
-		private bool RequiresToSave(ObjectChanged<SharedEventInfo> changedData)
+		private bool RequiresToSave(ObjectChanged<EventInfo> changedData)
 		{
 			try {
-				if (changedData == null || changedData.NewValue == null || changedData.NewValue.EventInfo == null) {
+				if (changedData == null || changedData.NewValue == null) {
 					return false;
 				}
 

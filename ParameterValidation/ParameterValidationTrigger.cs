@@ -23,14 +23,13 @@ namespace Xtensive.Project109.Host.DPA
 
 		public override Task StartAsync()
 		{
-			var eventId = "fef321ed-6a5e-4538-afb8-711bfee7351e";
 			sub = eventSource
 				.EventsOf<ObjectChanged<EventInfo>>()
-				.WithEventId(Guid.Parse(eventId))
+				.WithEventId(ZF_Config.VALIDATION_TRIGGER_EVENT_ID)
 				.Where(RequiresValidation)
 				.Subscribe(HandleIndicatorEvent);
 
-			logger.Info(string.Format("Subscription for event {0} has started", eventId));
+			logger.Info(string.Format("Subscription for event {0} has started", ZF_Config.VALIDATION_TRIGGER_EVENT_ID));
 			return Task.CompletedTask;
 		}
 
@@ -75,7 +74,7 @@ namespace Xtensive.Project109.Host.DPA
 
 			foreach (var equipment in equipments) {
 				logger.Info(string.Format("Trigger fired for event '{0}'({1}) of equipment '{2}'({3}) with value = '{4}'", obj.NewValue.EventName, obj.NewValue.EventIdentifier, equipment.Name, equipment.Id, ExtractValue(obj.NewValue)));
-				OnSignal(Tuple.Create(equipment.Id, 1));
+				OnSignal(Tuple.Create(equipment.Id, ZF_Config.VALIDATION_CHANNEL, obj.NewValue.TimeStamp));
 			}
 		}
 	}
