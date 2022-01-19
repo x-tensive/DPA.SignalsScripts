@@ -25,7 +25,8 @@ namespace Xtensive.Project109.Host.DPA
 				var productionQuantity = (ZFProductionQuantity)args.Obj;
 				var job = jobService.GetActiveProduction(productionQuantity.EquipmentId);
 				if (job != null) {
-					jobService.AppendQuantity(job.Id, productionQuantity.QuantityModel, Array.Empty<OperatorComponentConsumptionDto>(), "signals2", null, DateTimeOffset.UtcNow, null);
+					var user = Query.All<JobRunPeriod>().SingleOrDefault(rp => rp.End == null && rp.Job.Id == job.Id).StartOperator;
+					jobService.AppendQuantity(job.Id, productionQuantity.QuantityModel, Array.Empty<OperatorComponentConsumptionDto>(), "signals2", null, DateTimeOffset.UtcNow, user);
 				}
 			}
 			return Task.CompletedTask;
