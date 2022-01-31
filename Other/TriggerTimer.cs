@@ -43,7 +43,7 @@ namespace Xtensive.Project109.Host.DPA
 				}
 				catch (Exception ex)
 				{
-					logger.Error(ex);
+					logger.LogError(ex);
 					OnSignalError(ex.Message);
 				}
 				await Task.Delay(workerDelay, token);

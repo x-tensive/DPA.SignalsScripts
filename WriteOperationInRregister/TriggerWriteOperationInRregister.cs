@@ -32,13 +32,13 @@ namespace Xtensive.Project109.Host.DPA
 				.Where(x => x.OldValue.GetFieldValue("Axis load, %") != x.NewValue.GetFieldValue("Axis load, %"))
 				.Subscribe(HandleIndicatorEvent);
 
-			logger.Info("Subscription for equipment " + equipmentId + " started");
+			logger.LogInformation("Subscription for equipment " + equipmentId + " started");
 			return Task.CompletedTask;
 		}
 
 		private void HandleIndicatorEvent(ObjectChanged<AxisLoadEventInfo> obj)
 		{
-			logger.Info("trigger fired " + obj.NewValue.EventIdentifier + " - " + obj.NewValue.GetFieldValue("Axis load, %"));
+			logger.LogInformation("trigger fired " + obj.NewValue.EventIdentifier + " - " + obj.NewValue.GetFieldValue("Axis load, %"));
 			OnSignal(Tuple.Create(equipmentId, obj.NewValue.Number));
 		}
 

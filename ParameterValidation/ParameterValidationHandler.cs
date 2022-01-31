@@ -201,12 +201,12 @@ namespace Xtensive.Project109.Host.DPA
 				.Select(x => x.TimeStamp.Value)
 				.DefaultIfEmpty(DateTimeOffset.MinValue)
 				.Min();
-			logger.Info("Min timestamp = " + minTimeStamp + ", result = " + validationResult.Result);
+			logger.LogInformation("Min timestamp = " + minTimeStamp + ", result = " + validationResult.Result);
 
 			if (validationResult.Result == EquipmentValidationResult.Unknown || (triggerEventTimestamp - minTimeStamp).TotalMilliseconds >= ZF_Config.MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP) {
 				Task.Delay(ZF_Config.MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP).Wait();
 				validationResult = Validate(equipmentId, channel);
-				logger.Info("Second try" + ", result = " + validationResult.Result);
+				logger.LogInformation("Second try" + ", result = " + validationResult.Result);
 			}
 
 			ShortenValidationMessages(validationResult);
@@ -308,7 +308,7 @@ namespace Xtensive.Project109.Host.DPA
 
 			var validationMsg = GetMessage(validationResult);
 			var result = GetResultAsInt(validationResult);
-			logger.Info("Validation message: " + validationMsg);
+			logger.LogInformation("Validation message: " + validationMsg);
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_MESSAGE_URL, new[] { validationMsg == null ? string.Empty : validationMsg });
 			driverManager.WriteVariableByUrl(driverId, ZF_Config.TARGET_RESULT_URL, new[] { result.ToString() });
 		}

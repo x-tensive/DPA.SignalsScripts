@@ -52,7 +52,7 @@ namespace Xtensive.Project109.Host.DPA
 
 		private void Handler(long equipmentId, decimal accepted, decimal undefined, decimal rejected)
 		{
-			logger.Info(equipmentId);
+			logger.LogInformation(equipmentId);
 
 			OnSignal(new ZFProductionQuantity {
 				EquipmentId = equipmentId,

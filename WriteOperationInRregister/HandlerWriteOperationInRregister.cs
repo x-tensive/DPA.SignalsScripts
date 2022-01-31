@@ -34,7 +34,7 @@ namespace Xtensive.Project109.Host.DPA
 		private void LogValidationResult(EquipmentStateValidationResult validationResult)
 		{
 			var validationResultAsString = JsonConvert.SerializeObject(validationResult, new JsonSerializerSettings { Formatting = Formatting.Indented, Converters = new[] { new StringEnumConverter() } });
-			logger.Info(validationResultAsString);
+			logger.LogInformation(validationResultAsString);
 		}
 
 		private static void WriteToFolder(EquipmentStateValidationResult validationResult, Guid driverId, Xtensive.DPA.DpaClient.IDpaChannelManager driverManager)

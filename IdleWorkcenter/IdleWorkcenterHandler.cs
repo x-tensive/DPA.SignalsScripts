@@ -92,7 +92,7 @@ namespace Xtensive.Project109.Host.DPA
 				if (currentState != null) {
 					var stateDuration = (currentState.StartDate - timeProvider.Now).Duration();
 					if (stateDuration < MinimumRepeatInterval) {
-						logger.Info(string.Format("Equipment({0}) state(currently is {1}) has changed {2} seconds ago. It's too early for notification. State should be the same at least for {3} seconds before notification",
+						logger.LogInformation(string.Format("Equipment({0}) state(currently is {1}) has changed {2} seconds ago. It's too early for notification. State should be the same at least for {3} seconds before notification",
 							equipment.Name,
 							currentStateValue,
 							(int)stateDuration.TotalSeconds,
@@ -130,7 +130,7 @@ namespace Xtensive.Project109.Host.DPA
 				if (existingMessage != null) {
 					var existingMessageDelivery = await QueryAsync<MessageDelivery>("messageDelivery", BuildMessageDeliveryQuery(existingMessage.Id));
 					if (existingMessageDelivery != null) {
-						logger.Info(string.Format("One time notification about not responding driver was already sended. Message [{0}] was queued at [{1}]", existingMessage.Id, existingMessageDelivery.QueuedTime));
+						logger.LogInformation(string.Format("One time notification about not responding driver was already sended. Message [{0}] was queued at [{1}]", existingMessage.Id, existingMessageDelivery.QueuedTime));
 						return;
 					}
 				}
@@ -140,7 +140,7 @@ namespace Xtensive.Project109.Host.DPA
 					.ToArray();
 
 				SendMessage(job, equipment, lastEventTime, ONE_TIME_MESSAGE, oneTimeRecipients);
-				logger.Info(string.Format("One time notification about not responding driver was sended for {0} recipients", oneTimeRecipients.Length));
+				logger.LogInformation(string.Format("One time notification about not responding driver was sended for {0} recipients", oneTimeRecipients.Length));
 			}
 
 			private async Task SendMessageForMaster(ProductionJob activeJob, Equipment equipment, DateTimeOffset lastEventTime)
@@ -155,16 +155,16 @@ namespace Xtensive.Project109.Host.DPA
 				}
 
 				if ((previousMessageTimestamp - timeProvider.Now).Duration() <= MinimumRepeatInterval) {
-					logger.Info(string.Format("It's to early to send new notification for master for equipment '{0}'(driver {1}). Previous message was queued in {2}", equipment.Name, equipment.DriverIdentifier, previousMessageTimestamp));
+					logger.LogInformation(string.Format("It's to early to send new notification for master for equipment '{0}'(driver {1}). Previous message was queued in {2}", equipment.Name, equipment.DriverIdentifier, previousMessageTimestamp));
 					return;
 				}
 				var master = masterRegistrationService.GetCurrentMaster(equipment.Id);
 				if (master == null) {
-					logger.Info(string.Format("Unable to find current master for sending notification for equipment '{0}'(driver {1})", equipment.Name, equipment.DriverIdentifier));
+					logger.LogInformation(string.Format("Unable to find current master for sending notification for equipment '{0}'(driver {1})", equipment.Name, equipment.DriverIdentifier));
 					return;
 				}
 				SendMessage(activeJob, equipment, lastEventTime, MASTER_MESSAGE_SOURCE, Query.Single<User>(master.Id));
-				logger.Info(string.Format("Notification for master for equipment '{0}'(driver {1}) was sended", equipment.Name, equipment.DriverIdentifier));
+				logger.LogInformation(string.Format("Notification for master for equipment '{0}'(driver {1}) was sended", equipment.Name, equipment.DriverIdentifier));
 			}
 
 			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime)
@@ -172,7 +172,7 @@ namespace Xtensive.Project109.Host.DPA
 				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).Single();
 				var job = jobService.GetActiveProduction(equipment);
 				if (job == null) {
-					logger.Info(string.Format("Job was already completed. Notification for equipment '{{0}}'(driver {1}) is cancelled", equipment.Name, driverId));
+					logger.LogInformation(string.Format("Job was already completed. Notification for equipment '{{0}}'(driver {1}) is cancelled", equipment.Name, driverId));
 					return;
 				}
 
@@ -208,7 +208,7 @@ namespace Xtensive.Project109.Host.DPA
 				}
 				catch {
 					var msg = string.Format("\n\tNot responding driver message request: {0}\n\tNot responding driver message response: {1}", requestAsString, responseAsString);
-					logger.Debug(msg);
+					logger.LogDebug(msg);
 					throw;
 				}
 			}

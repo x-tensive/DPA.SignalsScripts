@@ -24,7 +24,7 @@ namespace Xtensive.Project109.Host.DPA
 		}
 		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
-			logger.Info(args);
+			logger.LogInformation(args);
 			if (args.Obj is CommonDowntimeUnclassified) {
 				var obj = (CommonDowntimeUnclassified)args.Obj;
 
@@ -58,15 +58,15 @@ namespace Xtensive.Project109.Host.DPA
 							);
 						}
 						else {
-							logger.Info(string.Format("not found settings for equipmentId [{0}]", obj.EquipmentId));
+							logger.LogInformation(string.Format("not found settings for equipmentId [{0}]", obj.EquipmentId));
 						}
 					}
 					else {
-						logger.Info(string.Format("skip DowntimeReasonId [{0}],  record type [{1}]", obj.ReasonId, record.Type));
+						logger.LogInformation(string.Format("skip DowntimeReasonId [{0}],  record type [{1}]", obj.ReasonId, record.Type));
 					}
 				}
 				else {
-					logger.Info(string.Format("not found DowntimeReasonId [{0}]", obj.ReasonId));
+					logger.LogInformation(string.Format("not found DowntimeReasonId [{0}]", obj.ReasonId));
 				}
 			}
 			return Task.CompletedTask;

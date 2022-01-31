@@ -35,7 +35,7 @@ namespace Xtensive.Project109.Host.DPA
 
 		private void Fire(ObjectChanged<EventInfo> changedData)
 		{
-			logger.Info(string.Format("Fired for event {0}", changedData.NewValue.EventName));
+			logger.LogInformation(string.Format("Fired for event {0}", changedData.NewValue.EventName));
 			OnSignal(changedData);
 		}
 
@@ -61,7 +61,7 @@ namespace Xtensive.Project109.Host.DPA
 				}
 			}
 			catch (Exception ex) {
-				logger.Error(ex);
+				logger.LogError(ex);
 			}
 
 			return false;

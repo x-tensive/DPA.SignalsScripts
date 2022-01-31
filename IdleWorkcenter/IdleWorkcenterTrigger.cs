@@ -94,7 +94,7 @@ namespace Xtensive.Project109.Host.DPA
 			{
 				timer = new Timer(maxIdleDuration.TotalMilliseconds) { AutoReset = true };
 				timer.Elapsed += (sender, e) => {
-					logger.Debug("Driver is not responding for too long " + driverId.ToString());
+					logger.LogDebug("Driver is not responding for too long " + driverId.ToString());
 					handler(Tuple.Create(driverId, eventTimeStamp));
 				};
 				if (jobIsRunning) {

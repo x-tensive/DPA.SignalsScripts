@@ -22,7 +22,7 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			var fullFilePath = args.Obj.ToString();
 			var fileContent = fileSystem.ReadAllText(fullFilePath);
-			logger.Debug("Import product from file '" + fullFilePath + "'. Data: " + fileContent);
+			logger.LogDebug("Import product from file '" + fullFilePath + "'. Data: " + fileContent);
 
 			var product = JsonConvert.DeserializeObject<ReferenceBookOfProductsModel>(fileContent);
 			new ReferenceBookOfProducts().Update(product);

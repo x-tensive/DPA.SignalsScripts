@@ -30,7 +30,7 @@ namespace Xtensive.Project109.Host.DPA
 				.Where(RequiresValidation)
 				.Subscribe(HandleIndicatorEvent);
 
-			logger.Info(string.Format("Subscription for event {0} has started", ZF_Config.VALIDATION_TRIGGER_EVENT_ID));
+			logger.LogInformation(string.Format("Subscription for event {0} has started", ZF_Config.VALIDATION_TRIGGER_EVENT_ID));
 			return Task.CompletedTask;
 		}
 
@@ -52,7 +52,7 @@ namespace Xtensive.Project109.Host.DPA
 				return previousValue != newValue && newValue == ZF_Config.VALIDATION_TRIGGER_VALUE;
 			}
 			catch (Exception ex) {
-				logger.Error(ex);
+				logger.LogError(ex);
 				return false;
 			}
 		}
@@ -74,7 +74,7 @@ namespace Xtensive.Project109.Host.DPA
 				.ToArray();
 
 			foreach (var equipment in equipments) {
-				logger.Info(string.Format("Trigger fired for event '{0}'({1}) of equipment '{2}'({3}) with value = '{4}'", obj.NewValue.EventName, obj.NewValue.EventIdentifier, equipment.Name, equipment.Id, ExtractValue(obj.NewValue)));
+				logger.LogInformation(string.Format("Trigger fired for event '{0}'({1}) of equipment '{2}'({3}) with value = '{4}'", obj.NewValue.EventName, obj.NewValue.EventIdentifier, equipment.Name, equipment.Id, ExtractValue(obj.NewValue)));
 				OnSignal(Tuple.Create(equipment.Id, ZF_Config.VALIDATION_CHANNEL, obj.NewValue.TimeStamp));
 			}
 		}

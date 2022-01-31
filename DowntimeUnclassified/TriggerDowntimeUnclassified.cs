@@ -41,9 +41,9 @@ namespace Xtensive.Project109.Host.DPA
 		}
 		private void HandleReasonEvent(DowntimeReasonActionDto action)
 		{
-			logger.Info(string.Format("DowntimeReason {0} {1} {2}", action.Id, action.StartDate, action.EndDate));
+			logger.LogInformation(string.Format("DowntimeReason {0} {1} {2}", action.Id, action.StartDate, action.EndDate));
 			if (!settings.EquipmentsSettings.ContainsKey(action.EquipmentId)) {
-				logger.Info(string.Format("skip equipmentId [{0}]", action.EquipmentId));
+				logger.LogInformation(string.Format("skip equipmentId [{0}]", action.EquipmentId));
 				return;
 			}
 
@@ -89,7 +89,7 @@ namespace Xtensive.Project109.Host.DPA
 
 									for (var i = equipmentSettings.Count - 1; i >= 0; i--) {
 										if (t > equipmentSettings[i].Duration) {
-											logger.Info(equipmentId);
+											logger.LogInformation(equipmentId);
 											if (reason.Value.LastLevelIdSend == i - 1 && !isIgnore) {
 												OnSignal(new CommonDowntimeUnclassified {
 													EquipmentId = equipmentId,
@@ -110,14 +110,14 @@ namespace Xtensive.Project109.Host.DPA
 								}
 							}
 							catch (Exception e) {
-								logger.Error(e);
+								logger.LogError(e);
 								OnSignalError(e.Message);
 							}
 						}
 					}
 				}
 				catch (Exception ex) {
-					logger.Error(ex);
+					logger.LogError(ex);
 					OnSignalError(ex.Message);
 				}
 				await Task.Delay(settings.WorkerDelay, token);
