@@ -79,7 +79,7 @@ namespace Xtensive.Project109.Host.DPA
 
 		private void Handler(long equipmentId, long jobId, decimal accepted, decimal undefined, decimal rejected)
 		{
-			logger.LogInformation(equipmentId);
+			logger.LogInformation(equipmentId.ToString());
 
 			OnSignal(new ProductionQuantityByNewCycle {
 				EquipmentId = equipmentId,

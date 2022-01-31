@@ -52,7 +52,7 @@ namespace Xtensive.Project109.Host.DPA
 				return previousValue != newValue && newValue == ZF_Config.VALIDATION_TRIGGER_VALUE;
 			}
 			catch (Exception ex) {
-				logger.LogError(ex);
+				logger.LogError(ex, "Error");
 				return false;
 			}
 		}

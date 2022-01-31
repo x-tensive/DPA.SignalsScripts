@@ -61,7 +61,7 @@ namespace Xtensive.Project109.Host.DPA
 				}
 			}
 			catch (Exception ex) {
-				logger.LogError(ex);
+				logger.LogError(ex, "Error");
 			}
 
 			return false;

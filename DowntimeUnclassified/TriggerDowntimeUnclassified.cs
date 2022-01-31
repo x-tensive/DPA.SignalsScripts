@@ -89,7 +89,7 @@ namespace Xtensive.Project109.Host.DPA
 
 									for (var i = equipmentSettings.Count - 1; i >= 0; i--) {
 										if (t > equipmentSettings[i].Duration) {
-											logger.LogInformation(equipmentId);
+											logger.LogInformation(equipmentId.ToString());
 											if (reason.Value.LastLevelIdSend == i - 1 && !isIgnore) {
 												OnSignal(new CommonDowntimeUnclassified {
 													EquipmentId = equipmentId,
@@ -110,14 +110,14 @@ namespace Xtensive.Project109.Host.DPA
 								}
 							}
 							catch (Exception e) {
-								logger.LogError(e);
+								logger.LogError(e, "Error");
 								OnSignalError(e.Message);
 							}
 						}
 					}
 				}
 				catch (Exception ex) {
-					logger.LogError(ex);
+					logger.LogError(ex, "Error");
 					OnSignalError(ex.Message);
 				}
 				await Task.Delay(settings.WorkerDelay, token);
