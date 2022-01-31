@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Xtensive.DPA.EventManager;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -15,7 +16,7 @@ namespace Xtensive.Project109.Host.DPA
 		private readonly DatabaseAdapter dbAdapter = new DatabaseAdapter(EventsToDatabaseSensitiveConfig.TARGET_DATABASE_CONNECTION);
 		private readonly IEventSource eventSource;
 		private readonly IDpaChannelManagerResolver managerResolver;
-		private readonly IHostLog<EventsToDatabaseHandler> logger;
+		private readonly ILogger<EventsToDatabaseHandler> logger;
 
 		public void WriteSuccessToDriver(Equipment equipment)
 		{
@@ -47,7 +48,7 @@ namespace Xtensive.Project109.Host.DPA
 			return Task.CompletedTask;
 		}
 
-		public EventsToDatabaseHandler(IEventSource eventSource, IDpaChannelManagerResolver managerResolver, IHostLog<EventsToDatabaseHandler> logger)
+		public EventsToDatabaseHandler(IEventSource eventSource, IDpaChannelManagerResolver managerResolver, ILogger<EventsToDatabaseHandler> logger)
 		{
 			this.eventSource = eventSource;
 			this.managerResolver = managerResolver;

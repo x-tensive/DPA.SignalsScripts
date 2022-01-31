@@ -9,12 +9,13 @@ using System.Threading.Tasks;
 using Xtensive.DPA.Host.Contracts;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class ZFTriggerProductionQuantity : Signals2TriggerBase
 	{
-		private readonly IHostLog<ZFTriggerProductionQuantity> logger;
+		private readonly ILogger<ZFTriggerProductionQuantity> logger;
 		private IEventSource generalEventSource;
 		private IDisposable sub;
 		private IDisposable sub2;
@@ -22,7 +23,7 @@ namespace Xtensive.Project109.Host.DPA
 		public ZFTriggerProductionQuantity(IServiceProvider serviceProvider)
 		{
 			generalEventSource = serviceProvider.GetRequiredService<IEventSource>();
-			logger = serviceProvider.GetRequiredService<IHostLog<ZFTriggerProductionQuantity>>();
+			logger = serviceProvider.GetRequiredService<ILogger<ZFTriggerProductionQuantity>>();
 		}
 		public override Task StartAsync()
 		{

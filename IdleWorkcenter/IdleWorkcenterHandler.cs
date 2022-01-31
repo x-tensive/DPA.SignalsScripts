@@ -16,6 +16,7 @@ using Xtensive.DPA.Host.Localization;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -49,7 +50,7 @@ namespace Xtensive.Project109.Host.DPA
 		}
 		private class BtkInternalHandler
 		{
-			private readonly IHostLog logger;
+			private readonly ILogger logger;
 			private readonly IMicroserviceClient microserviceClient;
 			private readonly IJobService jobService;
 			private readonly MasterRegistrationService masterRegistrationService;
@@ -64,7 +65,7 @@ namespace Xtensive.Project109.Host.DPA
 				IJobService jobService,
 				MasterRegistrationService masterRegistrationService,
 				IDateTimeOffsetProvider timeProvider,
-				IHostLog logger)
+				ILogger logger)
 			{
 				this.microserviceSettings = microserviceSettings;
 				this.messageBuilder = messageBuilder;
@@ -230,9 +231,9 @@ namespace Xtensive.Project109.Host.DPA
 		}
 
 		private readonly IInScopeExecutor<IServiceProvider> executor;
-		private readonly IHostLog<IdleWorkcenterHandler> logger;
+		private readonly ILogger<IdleWorkcenterHandler> logger;
 
-		public IdleWorkcenterHandler(IInScopeExecutor<IServiceProvider> executor, IHostLog<IdleWorkcenterHandler> logger)
+		public IdleWorkcenterHandler(IInScopeExecutor<IServiceProvider> executor, ILogger<IdleWorkcenterHandler> logger)
 		{
 			this.executor = executor;
 			this.logger = logger;

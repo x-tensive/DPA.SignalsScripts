@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Xtensive.DPA.Contracts;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -19,13 +20,13 @@ namespace Xtensive.Project109.Host.DPA
 		private const string TARGET_FOLDER = "some folder of machine";
 		private const string VALIDATION_FILE_NAME = "some file name";
 
-		private readonly IHostLog<HandlerWriteOperationInRregister> logger;
+		private readonly ILogger<HandlerWriteOperationInRregister> logger;
 		private readonly IInScopeExecutor<IControlProgramService> executor;
 		private readonly IDpaChannelManagerResolver managerResolver;
 
 		public HandlerWriteOperationInRregister(IServiceProvider serviceProvider)
 		{
-			logger = serviceProvider.GetRequiredService<IHostLog<HandlerWriteOperationInRregister>>();
+			logger = serviceProvider.GetRequiredService<ILogger<HandlerWriteOperationInRregister>>();
 			executor = serviceProvider.GetRequiredService<IInScopeExecutor<IControlProgramService>>();
 			managerResolver = serviceProvider.GetRequiredService<IDpaChannelManagerResolver>();
 		}

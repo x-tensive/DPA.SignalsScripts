@@ -3,18 +3,19 @@ using Newtonsoft.Json;
 using System;
 using System.Threading.Tasks;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class HandlerImportProductFromFile : Signals2HandlerBase
 	{
 		private readonly IFileSystem fileSystem;
-		private readonly IHostLog<HandlerImportProductFromFile> logger;
+		private readonly ILogger<HandlerImportProductFromFile> logger;
 
 		public HandlerImportProductFromFile(IServiceProvider serviceProvider)
 		{
 			fileSystem = serviceProvider.GetRequiredService<IFileSystem>();
-			logger = serviceProvider.GetRequiredService<IHostLog<HandlerImportProductFromFile>>();
+			logger = serviceProvider.GetRequiredService<ILogger<HandlerImportProductFromFile>>();
 		}
 
 		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)

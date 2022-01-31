@@ -15,12 +15,13 @@ using System.Data.SqlClient;
 using Xtensive.DPA.Host.Localization;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class ZFHandler2 : Signals2HandlerBase
 	{
-		private readonly IHostLog<ZFHandler2> logger;
+		private readonly ILogger<ZFHandler2> logger;
 		private readonly IInScopeExecutor<IControlProgramService> executor;
 		private readonly IDpaChannelManagerResolver managerResolver;
 		private readonly IIndicatorDataService indicatorService;
@@ -29,7 +30,7 @@ namespace Xtensive.Project109.Host.DPA
 
 		public ZFHandler2(IServiceProvider serviceProvider)
 		{
-			logger = serviceProvider.GetRequiredService<IHostLog<ZFHandler2>>();
+			logger = serviceProvider.GetRequiredService<ILogger<ZFHandler2>>();
 			executor = serviceProvider.GetRequiredService<IInScopeExecutor<IControlProgramService>>();
 			managerResolver = serviceProvider.GetRequiredService<IDpaChannelManagerResolver>();
 			indicatorService = serviceProvider.GetRequiredService<IIndicatorDataService>();

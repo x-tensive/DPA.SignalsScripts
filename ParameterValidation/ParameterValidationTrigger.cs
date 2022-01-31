@@ -6,16 +6,17 @@ using System.Threading.Tasks;
 using Xtensive.DPA.EventManager;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class ZFTrigger2 : Signals2TriggerBase
 	{
-		private readonly IHostLog<ZFTrigger2> logger;
+		private readonly ILogger<ZFTrigger2> logger;
 		private readonly IEventSource eventSource;
 		private IDisposable sub;
 
-		public ZFTrigger2(IHostLog<ZFTrigger2> logger, IEventSource eventSource)
+		public ZFTrigger2(ILogger<ZFTrigger2> logger, IEventSource eventSource)
 		{
 			this.eventSource = eventSource;
 			this.logger = logger;

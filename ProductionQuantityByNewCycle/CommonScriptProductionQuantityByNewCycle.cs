@@ -1,5 +1,6 @@
 using System;
 using Xtensive.DPA.Host.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {

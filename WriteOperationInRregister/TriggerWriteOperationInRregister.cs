@@ -7,12 +7,13 @@ using System.Threading.Tasks;
 using Xtensive.DPA.EventManager;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class TriggerWriteOperationInRregister : Signals2TriggerBase
 	{
-		private readonly IHostLog<TriggerWriteOperationInRregister> logger;
+		private readonly ILogger<TriggerWriteOperationInRregister> logger;
 		private IEventSource generalEventSource;
 		private IDisposable sub;
 		private long equipmentId;
@@ -20,7 +21,7 @@ namespace Xtensive.Project109.Host.DPA
 		public TriggerWriteOperationInRregister(IServiceProvider serviceProvider)
 		{
 			generalEventSource = serviceProvider.GetRequiredService<IEventSource>();
-			logger = serviceProvider.GetRequiredService<IHostLog<TriggerWriteOperationInRregister>>();
+			logger = serviceProvider.GetRequiredService<ILogger<TriggerWriteOperationInRregister>>();
 		}
 		public override Task StartAsync()
 		{

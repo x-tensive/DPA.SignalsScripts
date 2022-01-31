@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Xtensive.DPA.EventManager;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -88,7 +89,7 @@ namespace Xtensive.Project109.Host.DPA
 				TimeSpan maxIdleDuration,
 				Action<object> handler,
 				Guid driverId,
-				IHostLog logger,
+				ILogger logger,
 				bool jobIsRunning = false)
 			{
 				timer = new Timer(maxIdleDuration.TotalMilliseconds) { AutoReset = true };
@@ -105,7 +106,7 @@ namespace Xtensive.Project109.Host.DPA
 
 		private readonly IEventSource eventSource;
 		private readonly IJobService jobService;
-		private readonly IHostLog<IdleWorkcenterTrigger> logger;
+		private readonly ILogger<IdleWorkcenterTrigger> logger;
 		private readonly IDateTimeOffsetProvider timeProvider;
 		private readonly IInScopeExecutor<IEquipmentService> equipmentService;
 		private readonly ConcurrentDictionary<Guid, DriverState> driversStates = new ConcurrentDictionary<Guid, DriverState>();
@@ -115,7 +116,7 @@ namespace Xtensive.Project109.Host.DPA
 		public IdleWorkcenterTrigger(
 			IEventSource eventSource,
 			IJobService jobService,
-			IHostLog<IdleWorkcenterTrigger> logger,
+			ILogger<IdleWorkcenterTrigger> logger,
 			IDateTimeOffsetProvider timeProvider,
 			IInScopeExecutor<IEquipmentService> equipmentService)
 		{

@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {

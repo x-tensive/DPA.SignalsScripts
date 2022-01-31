@@ -4,20 +4,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
-
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class ZFHandlerProductionQuantity : Signals2HandlerBase
 	{
 		private readonly IJobService jobService;
-		private readonly IHostLog<ZFHandlerProductionQuantity> logger;
+		private readonly ILogger<ZFHandlerProductionQuantity> logger;
 
 		public ZFHandlerProductionQuantity(IServiceProvider serviceProvider)
 		{
 			//equipmentService = serviceProvider.GetRequiredService<IEquipmentService>();
 			jobService = serviceProvider.GetRequiredService<IJobService>();
-			logger = serviceProvider.GetRequiredService<IHostLog<ZFHandlerProductionQuantity>>();
+			logger = serviceProvider.GetRequiredService<ILogger<ZFHandlerProductionQuantity>>();
 		}
 
 		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)

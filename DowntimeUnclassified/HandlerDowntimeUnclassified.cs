@@ -6,17 +6,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
+
 namespace Xtensive.Project109.Host.DPA
 {
 	public class HandlerDowntimeUnclassified : Signals2HandlerBase
 	{
 		private SettingsDowntimeUnclassified settings;
 		private readonly NotificationMessageTaskBuilder notificationMessageTaskBuilder;
-		private readonly IHostLog<HandlerDowntimeUnclassified> logger;
+		private readonly ILogger<HandlerDowntimeUnclassified> logger;
 		public HandlerDowntimeUnclassified(IServiceProvider serviceProvider)
 		{
 			notificationMessageTaskBuilder = serviceProvider.GetRequiredService<NotificationMessageTaskBuilder>();
-			logger = serviceProvider.GetRequiredService<IHostLog<HandlerDowntimeUnclassified>>();
+			logger = serviceProvider.GetRequiredService<ILogger<HandlerDowntimeUnclassified>>();
 			settings = new SettingsDowntimeUnclassified();
 			settings.EquipmentsSettings = settings.EquipmentsSettings.ToDictionary(x => x.Key, x => x.Value.OrderBy(y => y.Duration).ToList());
 		}

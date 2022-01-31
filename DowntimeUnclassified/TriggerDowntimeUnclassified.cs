@@ -7,12 +7,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
+
 namespace Xtensive.Project109.Host.DPA
 {
 	public class TriggerDowntimeUnclassified : Signals2TriggerBase
 	{
 		private SettingsDowntimeUnclassified settings;
-		private readonly IHostLog<TriggerDowntimeUnclassified> logger;
+		private readonly ILogger<TriggerDowntimeUnclassified> logger;
 		private readonly IDateTimeOffsetProvider dateTimeOffsetProvider;
 		private readonly IDowntimeReasonService downtimeReasonService;
 		private ConcurrentDictionary<long, ConcurrentDictionary<long, TriggerDowntimeUnclassifiedItem>> equipmentUnclassifiedReasons;
@@ -23,7 +25,7 @@ namespace Xtensive.Project109.Host.DPA
 		public TriggerDowntimeUnclassified(IServiceProvider serviceProvider)
 		{
 			downtimeReasonService = serviceProvider.GetRequiredService<IDowntimeReasonService>();
-			logger = serviceProvider.GetRequiredService<IHostLog<TriggerDowntimeUnclassified>>();
+			logger = serviceProvider.GetRequiredService<ILogger<TriggerDowntimeUnclassified>>();
 			dateTimeOffsetProvider = serviceProvider.GetRequiredService<IDateTimeOffsetProvider>();
 			settings = new SettingsDowntimeUnclassified();
 			settings.EquipmentsSettings = settings.EquipmentsSettings.ToDictionary(x => x.Key, x => x.Value.OrderBy(y => y.Duration).ToList());

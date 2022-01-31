@@ -5,16 +5,17 @@ using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Xtensive.DPA.EventManager;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class EventsToDatabaseTrigger : Signals2TriggerBase
 	{
 		private readonly IEventSource eventSource;
-		private readonly IHostLog<EventsToDatabaseTrigger> logger;
+		private readonly ILogger<EventsToDatabaseTrigger> logger;
 		private IDisposable subscription;
 
-		public EventsToDatabaseTrigger(IEventSource eventSource, IHostLog<EventsToDatabaseTrigger> logger)
+		public EventsToDatabaseTrigger(IEventSource eventSource, ILogger<EventsToDatabaseTrigger> logger)
 		{
 			this.eventSource = eventSource;
 			this.logger = logger;

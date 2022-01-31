@@ -2,19 +2,20 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Threading.Tasks;
 using Xtensive.Project109.Host.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class HandlerProductionQuantityByNewCycle : Signals2HandlerBase
 	{
 		private readonly IJobService jobService;
-		private readonly IHostLog<HandlerProductionQuantityByNewCycle> logger;
+		private readonly ILogger<HandlerProductionQuantityByNewCycle> logger;
 
 		public HandlerProductionQuantityByNewCycle(IServiceProvider serviceProvider)
 		{
 			//equipmentService = serviceProvider.GetRequiredService<IEquipmentService>();
 			jobService = serviceProvider.GetRequiredService<IJobService>();
-			logger = serviceProvider.GetRequiredService<IHostLog<HandlerProductionQuantityByNewCycle>>();
+			logger = serviceProvider.GetRequiredService<ILogger<HandlerProductionQuantityByNewCycle>>();
 		}
 
 		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)

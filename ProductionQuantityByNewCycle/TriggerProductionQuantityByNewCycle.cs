@@ -7,12 +7,13 @@ using Xtensive.DPA.Host.Contracts;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
 	public class TriggerProductionQuantityByNewCycle : Signals2TriggerBase
 	{
-		private readonly IHostLog<TriggerProductionQuantityByNewCycle> logger;
+		private readonly ILogger<TriggerProductionQuantityByNewCycle> logger;
 		private readonly ISystemSessionExecutor systemSession;
 		private IJobService jobService;
 		private IDisposable subUpdated;
@@ -25,7 +26,7 @@ namespace Xtensive.Project109.Host.DPA
 		public TriggerProductionQuantityByNewCycle(IServiceProvider serviceProvider)
 		{
 			jobService = serviceProvider.GetRequiredService<IJobService>();
-			logger = serviceProvider.GetRequiredService<IHostLog<TriggerProductionQuantityByNewCycle>>();
+			logger = serviceProvider.GetRequiredService<ILogger<TriggerProductionQuantityByNewCycle>>();
 			systemSession = serviceProvider.GetRequiredService<ISystemSessionExecutor>();
 		}
 		public override Task StartAsync()

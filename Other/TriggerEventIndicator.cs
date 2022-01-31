@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Xtensive.Orm;
 using Xtensive.Project109.Host.DPA.Adapter;
+using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
