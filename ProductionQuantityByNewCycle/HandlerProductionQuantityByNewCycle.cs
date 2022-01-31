@@ -20,7 +20,7 @@ namespace Xtensive.Project109.Host.DPA
 
 		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
-			logger.LogInformation(args);
+			logger.LogInformation(args.ToString());
 
 			if (args.Obj is ProductionQuantityByNewCycle) {
 				var productionQuantity = (ProductionQuantityByNewCycle)args.Obj;
