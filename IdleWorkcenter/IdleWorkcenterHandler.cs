@@ -2,6 +2,8 @@ using DPA.Core.Contracts;
 using DPA.Core.DependencyInjection;
 using DPA.Core.Services;
 using DPA.Messenger.Client.Models;
+using DPA.Planning.Client;
+using DPA.Planning.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
@@ -52,7 +54,7 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			private readonly ILogger logger;
 			private readonly IMicroserviceClient microserviceClient;
-			private readonly IJobService jobService;
+			private readonly IJobDataClient jobService;
 			private readonly MasterRegistrationService masterRegistrationService;
 			private readonly IDateTimeOffsetProvider timeProvider;
 			private readonly NotificationMessageTaskBuilder messageBuilder;
@@ -62,7 +64,7 @@ namespace Xtensive.Project109.Host.DPA
 				IMicroserviceSettingsService microserviceSettings,
 				NotificationMessageTaskBuilder messageBuilder,
 				IMicroserviceClient microserviceClient,
-				IJobService jobService,
+				IJobDataClient jobService,
 				MasterRegistrationService masterRegistrationService,
 				IDateTimeOffsetProvider timeProvider,
 				ILogger logger)
@@ -76,7 +78,7 @@ namespace Xtensive.Project109.Host.DPA
 				this.logger = logger;
 			}
 
-			private void SendMessage(ProductionJob activeJob, Equipment equipment, DateTimeOffset lastEventTimeStamp, string messageSource, params User[] currentRecipients)
+			private void SendMessage(JobModel activeJob, Equipment equipment, DateTimeOffset lastEventTimeStamp, string messageSource, params User[] currentRecipients)
 			{
 				if (currentRecipients == null || currentRecipients.Length == 0) {
 					return;
@@ -106,7 +108,7 @@ namespace Xtensive.Project109.Host.DPA
 				var parameters = new Dictionary<string, string> {
 					{ "EquipmentName", equipment.Name },
 					{ "EquipmentId", equipment.Id.ToString() },
-					{ "JobName", activeJob.Order },
+					{ "JobName", activeJob.Production.Order },
 					{ "JobLink", string.Format("{0}://{1}/operatorNew/#/master/equipment/{2}/tasks/{3}", HTTP_PROTOCOL, HOST, equipment.Id, activeJob.Id )},
 					{ "SignalTimestamp", timeProvider.Now.ToString(LocalizationManager.Ru) },
 					{ "CurrentEquipmentState", currentStateValue.GetName() },
@@ -124,7 +126,7 @@ namespace Xtensive.Project109.Host.DPA
 				);
 			}
 
-			private async Task SendOneTimeMessage(ProductionJob job, Equipment equipment, DateTimeOffset lastEventTime)
+			private async Task SendOneTimeMessage(JobModel job, Equipment equipment, DateTimeOffset lastEventTime)
 			{
 				var existingMessage = await QueryAsync<EntityReference>("message", BuildMessageQuery(equipment.DriverIdentifier, ONE_TIME_MESSAGE, lastEventTime));
 				if (existingMessage != null) {
@@ -143,7 +145,7 @@ namespace Xtensive.Project109.Host.DPA
 				logger.LogInformation(string.Format("One time notification about not responding driver was sended for {0} recipients", oneTimeRecipients.Length));
 			}
 
-			private async Task SendMessageForMaster(ProductionJob activeJob, Equipment equipment, DateTimeOffset lastEventTime)
+			private async Task SendMessageForMaster(JobModel activeJob, Equipment equipment, DateTimeOffset lastEventTime)
 			{
 				var previousMessageTimestamp = DateTimeOffset.MinValue;
 				var previousMessage = await QueryAsync<EntityReference>("message", BuildMessageQuery(equipment.DriverIdentifier, MASTER_MESSAGE_SOURCE, lastEventTime));
@@ -170,7 +172,8 @@ namespace Xtensive.Project109.Host.DPA
 			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime)
 			{
 				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).Single();
-				var job = jobService.GetActiveProduction(equipment);
+				var job = (await jobService.GetStartedProductionAsync(equipment.Id))
+					.FirstOrDefault();
 				if (job == null) {
 					logger.LogInformation(string.Format("Job was already completed. Notification for equipment '{{0}}'(driver {1}) is cancelled", equipment.Name, driverId));
 					return;
@@ -249,7 +252,7 @@ namespace Xtensive.Project109.Host.DPA
 						x.GetRequiredService<IMicroserviceSettingsService>(),
 						x.GetRequiredService<NotificationMessageTaskBuilder>(),
 						x.GetRequiredService<IMicroserviceClient>(),
-						x.GetRequiredService<IJobService>(),
+						x.GetRequiredService<IJobDataClient>(),
 						x.GetRequiredService<MasterRegistrationService>(),
 						x.GetRequiredService<IDateTimeOffsetProvider>(),
 						logger

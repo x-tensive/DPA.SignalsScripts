@@ -24,7 +24,7 @@ namespace Xtensive.Project109.Host.DPA
 			var fileContent = fileSystem.ReadAllText(fullFilePath);
 			logger.LogDebug("Import product from file '" + fullFilePath + "'. Data: " + fileContent);
 
-			var product = JsonConvert.DeserializeObject<ReferenceBookOfProductsModel>(fileContent);
+			var product = JsonConvert.DeserializeObject<ProductsModel>(fileContent);
 			new ReferenceBookOfProducts().Update(product);
 
 			fileSystem.DeleteFile(fullFilePath);

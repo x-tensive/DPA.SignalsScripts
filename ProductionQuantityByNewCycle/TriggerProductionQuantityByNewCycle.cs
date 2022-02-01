@@ -1,10 +1,11 @@
+using DPA.Core.Contracts;
+using DPA.Core.Contracts.Planning;
+using DPA.Planning.Client;
+using DPA.Planning.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Threading.Tasks;
-using Xtensive.DPA.Host.Contracts;
-using Xtensive.Orm;
 using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
 using Microsoft.Extensions.Logging;
@@ -15,37 +16,37 @@ namespace Xtensive.Project109.Host.DPA
 	{
 		private readonly ILogger<TriggerProductionQuantityByNewCycle> logger;
 		private readonly ISystemSessionExecutor systemSession;
-		private IJobService jobService;
+		private IJobNotificationService jobNotificationService;
+		private IJobDataClient jobClient;
 		private IDisposable subUpdated;
 		private IDisposable subRunned;
 		private IDisposable subStopped;
 		private IDisposable subRemoved;
 
-		private ConcurrentDictionary<long, JobTechnologyCycleRun[]> ActiveJobs = new ConcurrentDictionary<long, JobTechnologyCycleRun[]>();
+		private ConcurrentDictionary<long, JobCompletionCycleRunModel[]> ActiveJobs = new ConcurrentDictionary<long, JobCompletionCycleRunModel[]>();
 
 		public TriggerProductionQuantityByNewCycle(IServiceProvider serviceProvider)
 		{
-			jobService = serviceProvider.GetRequiredService<IJobService>();
+			jobNotificationService = serviceProvider.GetService<IJobNotificationService>();
+			jobClient = serviceProvider.GetRequiredService<IJobDataClient>();
 			logger = serviceProvider.GetRequiredService<ILogger<TriggerProductionQuantityByNewCycle>>();
 			systemSession = serviceProvider.GetRequiredService<ISystemSessionExecutor>();
 		}
 		public override Task StartAsync()
 		{
-			subUpdated = jobService.Subscribe<JobUpdatedActionDto>(HandleUpdate);
+			subUpdated = jobNotificationService.Subscribe<JobUpdatedEvent>(HandleUpdate);
 
-			subRemoved = jobService.Subscribe<JobsRemovedActionDto>((dto) => {
+			subRemoved = jobNotificationService.Subscribe<JobsRemovedEvent>((dto) => {
 				foreach (var jobId in dto.JobIds) {
 					TryRemove(jobId);
 				}
 			});
-			subStopped = jobService.Subscribe<JobStoppedActionDto>((dto) => {
+			subStopped = jobNotificationService.Subscribe<JobStoppedEvent>((dto) => {
 				TryRemove(dto.Job.Id);
 			});
-			subRunned = jobService.Subscribe<JobRunnedActionDto>((dto) => {
-				systemSession.Execute(() => {
-					var jobCurrent = Query.Single<ProductionJob>(dto.Job.Id);
-					ActiveJobs.TryAdd(dto.Job.Id, jobCurrent.JobTechnology.CycleRuns.ToArray());
-				});
+			subRunned = jobNotificationService.Subscribe<JobRunnedEvent>((dto) => {
+				var jobInfo = jobClient.GetJobCompletionInfo(dto.Job.Id);
+				ActiveJobs.TryAdd(dto.Job.Id, jobInfo.CycleRuns);
 			});
 
 			return Task.CompletedTask;
@@ -53,38 +54,38 @@ namespace Xtensive.Project109.Host.DPA
 
 		private void TryRemove(long jobId)
 		{
-			JobTechnologyCycleRun[] cycleRuns;
+			JobCompletionCycleRunModel[] cycleRuns;
 			ActiveJobs.TryRemove(jobId, out cycleRuns);
 		}
 
-		private void HandleUpdate(JobUpdatedActionDto dto)
+		private void HandleUpdate(JobUpdatedEvent dto)
 		{
 			systemSession.Execute(() => {
-				JobTechnologyCycleRun[] cycleRuns;
+				JobCompletionCycleRunModel[] cycleRuns;
+				var jobCurrent = jobClient.GetJobCompletionInfo(dto.Job.Id);
 				if (ActiveJobs.TryGetValue(dto.Job.Id, out cycleRuns)) {
-					var jobCurrent = Query.Single<ProductionJob>(dto.Job.Id);
-					if (cycleRuns != null && jobCurrent.JobTechnology.CycleRuns != null && jobCurrent.JobTechnology.CycleRuns.Count > cycleRuns.Length) {
+					if (cycleRuns != null && jobCurrent.CycleRuns.Length > cycleRuns.Length) {
 						if (dto.Job.EquipmentId != null)
-							Handler(dto.Job.EquipmentId.Value, jobCurrent.Id, 0, 1, 0);
+							Handler(dto.Job.EquipmentId.Value, jobCurrent.Id, 1, ReleaseQualityMark.Undefined);
 					}
-					ActiveJobs[dto.Job.Id] = jobCurrent.JobTechnology.CycleRuns.ToArray();
+					ActiveJobs[dto.Job.Id] = jobCurrent.CycleRuns;
 				}
 				else {
-					var job = Query.SingleOrDefault<ProductionJob>(dto.Job.Id);
-					if (job != null)
-						ActiveJobs.TryAdd(dto.Job.Id, job.JobTechnology.CycleRuns.ToArray());
+					if (jobCurrent != null)
+						ActiveJobs.TryAdd(dto.Job.Id, jobCurrent.CycleRuns);
 				}
 			});
 		}
 
-		private void Handler(long equipmentId, long jobId, decimal accepted, decimal undefined, decimal rejected)
+		private void Handler(long equipmentId, long jobId, decimal quantity, ReleaseQualityMark quality)
 		{
 			logger.LogInformation(equipmentId.ToString());
 
 			OnSignal(new ProductionQuantityByNewCycle {
 				EquipmentId = equipmentId,
 				JobId = jobId,
-				QuantityModel = new QuantityModel(accepted, undefined, rejected)
+				Quantity = quantity,
+				Quality = quality,
 			});
 		}
 

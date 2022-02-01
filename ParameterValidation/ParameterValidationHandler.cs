@@ -105,7 +105,7 @@ namespace Xtensive.Project109.Host.DPA
 			var lmNumber = string.Empty;
 			var indicator = indicatorService.GetFor(equipmentId, ZF_Config.LM_NUMBER_STATE, ZF_Config.LM_NUMBER_FIELD);
 			if (indicator != null) {
-				var value = indicatorService.GetLastValue(Query.Single<Indicator>(indicator.Id));
+				var value = indicatorService.GetLastValue(indicator);
 				if (value != null && value.Value != null) {
 					lmNumber = value.Value.ToString();
 				}

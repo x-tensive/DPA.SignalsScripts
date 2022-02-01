@@ -1,7 +1,9 @@
 using DPA.Adapter.Contracts;
 using DPA.Adapter.Contracts.Compare;
+using DPA.Core.Contracts.Planning;
 using DPA.Core.DependencyInjection;
 using DPA.Core.Services;
+using DPA.Planning.Client;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -105,23 +107,26 @@ namespace Xtensive.Project109.Host.DPA
 		}
 
 		private readonly IEventSource eventSource;
-		private readonly IJobService jobService;
+		private readonly IJobNotificationService jobNotificationService;
+		private readonly IJobDataClient jobClient;
 		private readonly ILogger<IdleWorkcenterTrigger> logger;
 		private readonly IDateTimeOffsetProvider timeProvider;
-		private readonly IInScopeExecutor<IEquipmentService> equipmentService;
+		private readonly IInScopeExecutor<IEquipmentDataService> equipmentService;
 		private readonly ConcurrentDictionary<Guid, DriverState> driversStates = new ConcurrentDictionary<Guid, DriverState>();
 		private readonly ConcurrentDictionary<long, Guid> equipments = new ConcurrentDictionary<long, Guid>();
 		private readonly List<IDisposable> subscriptions = new List<IDisposable>();
 
 		public IdleWorkcenterTrigger(
 			IEventSource eventSource,
-			IJobService jobService,
+			IJobNotificationService jobNotificationService,
+			IJobDataClient jobClient,
 			ILogger<IdleWorkcenterTrigger> logger,
 			IDateTimeOffsetProvider timeProvider,
-			IInScopeExecutor<IEquipmentService> equipmentService)
+			IInScopeExecutor<IEquipmentDataService> equipmentService)
 		{
 			this.eventSource = eventSource;
-			this.jobService = jobService;
+			this.jobNotificationService = jobNotificationService;
+			this.jobClient = jobClient;
 			this.logger = logger;
 			this.timeProvider = timeProvider;
 			this.equipmentService = equipmentService;
@@ -129,13 +134,13 @@ namespace Xtensive.Project109.Host.DPA
 
 		public override Task StartAsync()
 		{
-			Func<JobActionBaseDto, bool> isProduction = x => x.Job.JobType == OperatorEquipmentJobDtoType.Production;
+			Func<JobEventBase, bool> isProduction = x => x.Job.JobType == JobType.Production;
 
-			subscriptions.Add(jobService.Subscribe<JobRunnedActionDto>(isProduction, JobStarted));
-			subscriptions.Add(jobService.Subscribe<JobResumedActionDto>(isProduction, JobStarted));
+			subscriptions.Add(jobNotificationService.Subscribe<JobRunnedEvent>(isProduction, JobStarted));
+			subscriptions.Add(jobNotificationService.Subscribe<JobResumedEvent>(isProduction, JobStarted));
 
-			subscriptions.Add(jobService.Subscribe<JobSuspendedActionDto>(isProduction, JobStopped));
-			subscriptions.Add(jobService.Subscribe<JobCompletedActionDto>(isProduction, JobStopped));
+			subscriptions.Add(jobNotificationService.Subscribe<JobSuspendedEvent>(isProduction, JobStopped));
+			subscriptions.Add(jobNotificationService.Subscribe<JobCompletedEvent>(isProduction, JobStopped));
 
 			subscriptions.Add(eventSource.EventsOf<ObjectChanged<EventInfo>>().Where(x => !(x.NewValue is MessageEventInfo)).Subscribe(CheckEvent));
 
@@ -167,7 +172,12 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			Guid driverId;
 			if (!equipments.TryGetValue(equipmentId, out driverId)) {
-				driverId = equipmentService.ExecuteRead(x => x.Get(equipmentId).DriverIdentifier);
+				driverId = equipmentService.ExecuteRead(x => {
+					if (x.TryGetAvailableEquipment<EquipmentThinModel>(equipmentId, out var equipment)) {
+						return equipment.DriverIdentifier;
+					}
+					throw new HasNoRightsForEquipment(equipmentId);
+				});
 				equipments.TryAdd(equipmentId, driverId);
 			}
 			AddOrUpdateDriverState(driverId, x => handler(x));
@@ -175,10 +185,10 @@ namespace Xtensive.Project109.Host.DPA
 
 		private void Initialize()
 		{
-			var equipmentsWithStartedJobs = jobService
-				.GetProduction()
-				.Where(x => x.Status == Xtensive.DPA.Host.Contracts.JobStatus.Started && x.SecondaryStatus == Xtensive.DPA.Host.Contracts.SecondaryJobStatus.None)
-				.Select(x => new { x.Equipment.Id, x.Equipment.DriverIdentifier })
+			var equipmentList = equipmentService.ExecuteRead(x => x.GetAvailableEquipments<EquipmentThinModel>().ToDictionary(eq => eq.Id, eq => eq.DriverIdentifier));
+			var equipmentsWithStartedJobs = jobClient
+				.GetStartedProductionBy(equipmentList.Keys)
+				.Select(x => new { Id = x.Equipment.Value, DriverIdentifier = equipmentList[x.Equipment.Value] })
 				.Distinct()
 				.ToArray();
 
@@ -191,12 +201,12 @@ namespace Xtensive.Project109.Host.DPA
 			}
 		}
 
-		private void JobStarted(JobActionBaseDto job)
+		private void JobStarted(JobEventBase job)
 		{
 			JobChanged(job.Job.EquipmentId.Value, driverState => driverState.JobStarted());
 		}
 
-		private void JobStopped(JobActionBaseDto job)
+		private void JobStopped(JobEventBase job)
 		{
 			JobChanged(job.Job.EquipmentId.Value, driverState => driverState.JobStopped());
 		}

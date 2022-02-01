@@ -1,5 +1,7 @@
 using DPA.Adapter.Contracts;
 using DPA.Adapter.Dto;
+using DPA.Core.Contracts;
+using DPA.Core.Contracts.Planning;
 using DPA.Core.Repository.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -54,9 +56,14 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			logger.LogInformation(equipmentId.ToString());
 
+			var quality = accepted != 0 ? ReleaseQualityMark.Accepted
+				: undefined != 0 ? ReleaseQualityMark.Undefined
+				: ReleaseQualityMark.Rejected;
+
 			OnSignal(new ZFProductionQuantity {
 				EquipmentId = equipmentId,
-				QuantityModel = new QuantityModel(accepted, undefined, rejected)
+				Quantity = accepted + undefined + rejected,
+				Quality = quality
 			});
 		}
 
