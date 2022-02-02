@@ -34,8 +34,8 @@ namespace Xtensive.Project109.Host.DPA
 			subUpdated = jobService.Subscribe<JobUpdatedActionDto>(HandleUpdate);
 
 			subRemoved = jobService.Subscribe<JobsRemovedActionDto>((dto) => {
-				foreach (var jobId in dto.JobIds) {
-					TryRemove(jobId);
+				foreach (var job in dto.Jobs) {
+					TryRemove(job.Id);
 				}
 			});
 			subStopped = jobService.Subscribe<JobStoppedActionDto>((dto) => {
