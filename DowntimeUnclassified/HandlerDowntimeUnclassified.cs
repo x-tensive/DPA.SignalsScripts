@@ -1,12 +1,11 @@
 using DPA.Messenger.Client.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xtensive.Orm;
-using Xtensive.Project109.Host.Base;
-using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
