@@ -25,7 +25,7 @@ namespace Xtensive.Project109.Host.DPA
 		public const string VALIDATION_TRIGGER = "VALIDATIE";
 		public const string VALIDATION_TRIGGER_VALUE = "1";
 
-		//in milliseconds (1 sec = 1000 ms)
-		public const int MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP = 1000;
+		//in milliseconds
+		public const int DELAY_BEFORE_VALIDATION = 10000;
 	}
 }

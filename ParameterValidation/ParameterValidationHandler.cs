@@ -186,36 +186,20 @@ namespace Xtensive.Project109.Host.DPA
 				.ForEach(x => x.ResultDescription = BuildMessage(x));
 		}
 
-		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)
+		public override async Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
+			await Task.Delay(ZF_Config.DELAY_BEFORE_VALIDATION);
+
 			var triggeredBy = (Tuple<long, int, DateTimeOffset>)args.Obj;
 			var equipmentId = triggeredBy.Item1;
 			var channel = triggeredBy.Item2;
-			var triggerEventTimestamp = triggeredBy.Item3;
 			var validationResult = Validate(equipmentId, channel);
-
-			var minTimeStamp = validationResult
-				.ControlProgramsValidations
-				.SelectMany(x => x.SetsValidation.SelectMany(s => s.ParametersValidation))
-				.Where(x => x.TimeStamp.HasValue)
-				.Select(x => x.TimeStamp.Value)
-				.DefaultIfEmpty(DateTimeOffset.MinValue)
-				.Min();
-			logger.LogInformation("Min timestamp = " + minTimeStamp + ", result = " + validationResult.Result);
-
-			if (validationResult.Result == EquipmentValidationResult.Unknown || (triggerEventTimestamp - minTimeStamp).TotalMilliseconds >= ZF_Config.MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP) {
-				Task.Delay(ZF_Config.MAX_DIFF_TRIGGER_TO_PARAM_TIMESTAMP).Wait();
-				validationResult = Validate(equipmentId, channel);
-				logger.LogInformation("Second try" + ", result = " + validationResult.Result);
-			}
 
 			ShortenValidationMessages(validationResult);
 			LogValidationResult(validationResult);
 			WriteToDriver(equipmentId, validationResult);
 			WriteToDatabase(equipmentId, validationResult);
 			//WriteToFolder(validationResult, driverId, driverManager);
-
-			return Task.CompletedTask;
 		}
 
 		private EquipmentStateValidationResult Validate(long equipmentId, int channel)
