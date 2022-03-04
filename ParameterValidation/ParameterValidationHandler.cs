@@ -124,7 +124,9 @@ namespace Xtensive.Project109.Host.DPA
 							Parameter = parameterValidation.Parameter == null || parameterValidation.Parameter.Name == null ? string.Empty : parameterValidation.Parameter.Name,
 							Subprogram = programValidation.Subprogram == null ? string.Empty : programValidation.Subprogram,
 							Program = programValidation.ControlProgram == null ? string.Empty : programValidation.ControlProgram,
-							Value = AsNullableDouble(parameterValidation.CurrentValue),
+							Value = parameterValidation.CalculatedValue == null ? 
+								AsNullableDouble(parameterValidation.CurrentValue) : 
+								AsNullableDouble(parameterValidation.CalculatedValue),
 							LmNumber = lmNumber,
 							MinValue = parameterValidation.Parameter.Min,
 							MaxValue = parameterValidation.Parameter.Max,
@@ -186,9 +188,9 @@ namespace Xtensive.Project109.Host.DPA
 				.ForEach(x => x.ResultDescription = BuildMessage(x));
 		}
 
-		public override async Task SignalHandleAsync(Signals2ScriptEventArgs args)
+		public override Task SignalHandleAsync(Signals2ScriptEventArgs args)
 		{
-			await Task.Delay(ZF_Config.DELAY_BEFORE_VALIDATION);
+			Task.Delay(ZF_Config.DELAY_BEFORE_VALIDATION).Wait();
 
 			var triggeredBy = (Tuple<long, int, DateTimeOffset>)args.Obj;
 			var equipmentId = triggeredBy.Item1;
@@ -200,6 +202,8 @@ namespace Xtensive.Project109.Host.DPA
 			WriteToDriver(equipmentId, validationResult);
 			WriteToDatabase(equipmentId, validationResult);
 			//WriteToFolder(validationResult, driverId, driverManager);
+			
+			return Task.CompletedTask;
 		}
 
 		private EquipmentStateValidationResult Validate(long equipmentId, int channel)
