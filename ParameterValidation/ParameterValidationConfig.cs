@@ -20,6 +20,9 @@ namespace Xtensive.Project109.Host.DPA
 		//Windows folder for storing validation results
 		public const string LOG_DESTINATION = @"D:\Logs\Momentum Data";
 
+		//Email address where to send validation result
+		public const string EMAIL = "validation@mail.com";
+
 		public static readonly Guid VALIDATION_TRIGGER_EVENT_ID = Guid.Parse("fef321ed-6a5e-4538-afb8-711bfee7351e");
 		public const int VALIDATION_CHANNEL = 1;
 		public const string VALIDATION_TRIGGER = "VALIDATIE";
