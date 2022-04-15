@@ -16,6 +16,9 @@ using Xtensive.DPA.Host.Localization;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using DPA.Messenger.Client.Services;
+using DPA.Messenger.Client.Models;
+using Xtensive.Project109.Host.Security;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -25,6 +28,8 @@ namespace Xtensive.Project109.Host.DPA
 		private readonly IInScopeExecutor<IControlProgramService> executor;
 		private readonly IDpaChannelManagerResolver managerResolver;
 		private readonly IIndicatorDataService indicatorService;
+		private readonly MessengerClient messengerClient;
+		private readonly SecurityService securityService;
 
 		private readonly DatabaseAdapter dbAdapter = new DatabaseAdapter(EventsToDatabaseSensitiveConfig.TARGET_DATABASE_CONNECTION);
 
@@ -34,6 +39,32 @@ namespace Xtensive.Project109.Host.DPA
 			executor = serviceProvider.GetRequiredService<IInScopeExecutor<IControlProgramService>>();
 			managerResolver = serviceProvider.GetRequiredService<IDpaChannelManagerResolver>();
 			indicatorService = serviceProvider.GetRequiredService<IIndicatorDataService>();
+			messengerClient = serviceProvider.GetRequiredService<MessengerClient>();
+			securityService = serviceProvider.GetRequiredService<SecurityService>();
+		}
+
+		private void SendEmail(EquipmentStateValidationResult validationResult)
+		{
+			var bodyJson = JsonConvert.SerializeObject(validationResult, new JsonSerializerSettings { Formatting = Formatting.Indented, Converters = new[] { new StringEnumConverter() } });
+			var subject = string.Format("Validation result for equipment {0}", validationResult.Equipment);
+			var systemUser = securityService.EnsureSystemUserExist();
+
+			var message = new MessageWithAttachments {
+				Attachments = Array.Empty<Attachment>(),
+				Message = new Message {
+					Body = bodyJson,
+					Source = "ZFHandler2",
+					Subject = subject,
+					Recipients = new[] {
+						new Recipient {
+							Contact = ZF_Config.EMAIL,
+							Transport = MessageTransportType.Email,
+							UserId = systemUser.Id,
+						}
+					}
+				}
+			};
+			messengerClient.Send(message).Wait();
 		}
 
 		private void LogValidationResult(EquipmentStateValidationResult validationResult)
@@ -201,6 +232,7 @@ namespace Xtensive.Project109.Host.DPA
 			LogValidationResult(validationResult);
 			WriteToDriver(equipmentId, validationResult);
 			WriteToDatabase(equipmentId, validationResult);
+			SendEmail(validationResult);
 			//WriteToFolder(validationResult, driverId, driverManager);
 			
 			return Task.CompletedTask;
