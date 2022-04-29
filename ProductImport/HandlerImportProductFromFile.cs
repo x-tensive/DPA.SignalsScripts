@@ -1,9 +1,9 @@
+using DPA.Core;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Threading.Tasks;
-using Xtensive.Project109.Host.Base;
-using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
