@@ -106,9 +106,10 @@ namespace Xtensive.Project109.Host.DPA
 
 		private readonly IEventSource eventSource;
 		private readonly IJobService jobService;
+		private readonly IJobNotificationService jobNotificationService;
 		private readonly ILogger<IdleWorkcenterTrigger> logger;
 		private readonly IDateTimeOffsetProvider timeProvider;
-		private readonly IInScopeExecutor<IEquipmentService> equipmentService;
+		private readonly IInScopeExecutor<IEquipmentDataService> equipmentService;
 		private readonly ConcurrentDictionary<Guid, DriverState> driversStates = new ConcurrentDictionary<Guid, DriverState>();
 		private readonly ConcurrentDictionary<long, Guid> equipments = new ConcurrentDictionary<long, Guid>();
 		private readonly List<IDisposable> subscriptions = new List<IDisposable>();
@@ -116,12 +117,14 @@ namespace Xtensive.Project109.Host.DPA
 		public IdleWorkcenterTrigger(
 			IEventSource eventSource,
 			IJobService jobService,
+			IJobNotificationService jobNotificationService,
 			ILogger<IdleWorkcenterTrigger> logger,
 			IDateTimeOffsetProvider timeProvider,
-			IInScopeExecutor<IEquipmentService> equipmentService)
+			IInScopeExecutor<IEquipmentDataService> equipmentService)
 		{
 			this.eventSource = eventSource;
 			this.jobService = jobService;
+			this.jobNotificationService = jobNotificationService;
 			this.logger = logger;
 			this.timeProvider = timeProvider;
 			this.equipmentService = equipmentService;
@@ -131,11 +134,11 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			Func<JobActionBaseDto, bool> isProduction = x => x.Job.JobType == OperatorEquipmentJobDtoType.Production;
 
-			subscriptions.Add(jobService.Subscribe<JobRunnedActionDto>(isProduction, JobStarted));
-			subscriptions.Add(jobService.Subscribe<JobResumedActionDto>(isProduction, JobStarted));
+			subscriptions.Add(jobNotificationService.Subscribe<JobRunnedActionDto>(isProduction, JobStarted));
+			subscriptions.Add(jobNotificationService.Subscribe<JobResumedActionDto>(isProduction, JobStarted));
 
-			subscriptions.Add(jobService.Subscribe<JobSuspendedActionDto>(isProduction, JobStopped));
-			subscriptions.Add(jobService.Subscribe<JobCompletedActionDto>(isProduction, JobStopped));
+			subscriptions.Add(jobNotificationService.Subscribe<JobSuspendedActionDto>(isProduction, JobStopped));
+			subscriptions.Add(jobNotificationService.Subscribe<JobCompletedActionDto>(isProduction, JobStopped));
 
 			subscriptions.Add(eventSource.EventsOf<ObjectChanged<EventInfo>>().Where(x => !(x.NewValue is MessageEventInfo)).Subscribe(CheckEvent));
 
@@ -167,7 +170,12 @@ namespace Xtensive.Project109.Host.DPA
 		{
 			Guid driverId;
 			if (!equipments.TryGetValue(equipmentId, out driverId)) {
-				driverId = equipmentService.ExecuteRead(x => x.Get(equipmentId).DriverIdentifier);
+				driverId = equipmentService.ExecuteRead(x => {
+					if (x.TryGetAvailableEquipment<EquipmentThinModel>(equipmentId, out var equipment)) {
+						return equipment.DriverIdentifier;
+					}
+					else { throw new HasNoRightsForEquipment(equipmentId); }
+				});
 				equipments.TryAdd(equipmentId, driverId);
 			}
 			AddOrUpdateDriverState(driverId, x => handler(x));

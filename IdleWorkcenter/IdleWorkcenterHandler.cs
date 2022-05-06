@@ -170,7 +170,7 @@ namespace Xtensive.Project109.Host.DPA
 			public async Task ExecuteAsync(Guid driverId, DateTimeOffset lastEventTime)
 			{
 				var equipment = Query.All<Equipment>().Where(x => x.DriverIdentifier == driverId).Single();
-				var job = jobService.GetActiveProduction(equipment);
+				var job = jobService.GetActiveProduction(equipment.Id);
 				if (job == null) {
 					logger.LogInformation(string.Format("Job was already completed. Notification for equipment '{{0}}'(driver {1}) is cancelled", equipment.Name, driverId));
 					return;

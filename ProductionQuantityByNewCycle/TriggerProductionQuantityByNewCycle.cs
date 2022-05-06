@@ -1,13 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using Xtensive.DPA.Host.Contracts;
 using Xtensive.Orm;
-using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
-using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -15,7 +14,7 @@ namespace Xtensive.Project109.Host.DPA
 	{
 		private readonly ILogger<TriggerProductionQuantityByNewCycle> logger;
 		private readonly ISystemSessionExecutor systemSession;
-		private IJobService jobService;
+		private IJobNotificationService jobNotificationService;
 		private IDisposable subUpdated;
 		private IDisposable subRunned;
 		private IDisposable subStopped;
@@ -25,23 +24,23 @@ namespace Xtensive.Project109.Host.DPA
 
 		public TriggerProductionQuantityByNewCycle(IServiceProvider serviceProvider)
 		{
-			jobService = serviceProvider.GetRequiredService<IJobService>();
+			jobNotificationService = serviceProvider.GetRequiredService<IJobNotificationService>();
 			logger = serviceProvider.GetRequiredService<ILogger<TriggerProductionQuantityByNewCycle>>();
 			systemSession = serviceProvider.GetRequiredService<ISystemSessionExecutor>();
 		}
 		public override Task StartAsync()
 		{
-			subUpdated = jobService.Subscribe<JobUpdatedActionDto>(HandleUpdate);
+			subUpdated = jobNotificationService.Subscribe<JobUpdatedActionDto>(HandleUpdate);
 
-			subRemoved = jobService.Subscribe<JobsRemovedActionDto>((dto) => {
+			subRemoved = jobNotificationService.Subscribe<JobsRemovedActionDto>((dto) => {
 				foreach (var job in dto.Jobs) {
 					TryRemove(job.Id);
 				}
 			});
-			subStopped = jobService.Subscribe<JobStoppedActionDto>((dto) => {
+			subStopped = jobNotificationService.Subscribe<JobStoppedActionDto>((dto) => {
 				TryRemove(dto.Job.Id);
 			});
-			subRunned = jobService.Subscribe<JobRunnedActionDto>((dto) => {
+			subRunned = jobNotificationService.Subscribe<JobRunnedActionDto>((dto) => {
 				systemSession.Execute(() => {
 					var jobCurrent = Query.Single<ProductionJob>(dto.Job.Id);
 					ActiveJobs.TryAdd(dto.Job.Id, jobCurrent.JobTechnology.CycleRuns.ToArray());
