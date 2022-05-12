@@ -3,12 +3,12 @@ using DPA.Core.Contracts.Planning;
 using DPA.Planning.Client;
 using DPA.Planning.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Xtensive.Project109.Host.Base;
 using Xtensive.Project109.Host.Security;
-using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
