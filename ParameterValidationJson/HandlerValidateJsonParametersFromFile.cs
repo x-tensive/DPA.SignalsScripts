@@ -257,7 +257,9 @@ namespace Xtensive.Project109.Host.DPA
 					string.IsNullOrEmpty(validationResult.Parameter.Description)
 						? validationResult.Parameter.Name
 						: validationResult.Parameter.Description,
-					validationResult.CurrentValue,
+					validationResult.CalculatedValue != null
+						? validationResult.CalculatedValue
+						: validationResult.CurrentValue,
 					validationResult.Parameter.Min,
 					validationResult.Parameter.Max
 				);
@@ -298,6 +300,8 @@ namespace Xtensive.Project109.Host.DPA
 		public string Id { get; set; }
 		public string Name { get; set; }
 		public string Value { get; set; }
+		public int Count { get; set; }
+		public Dictionary<string, string>[] Values { get; set; }
 	}
 	
 	public class ZFModelToDPAModelMapper
@@ -320,8 +324,21 @@ namespace Xtensive.Project109.Host.DPA
 				var  dpaParametersModel = new List<DPAParameterModel>(countOfParameters);
 				foreach (var zfControlModel in  zfDialogModel.Controls)
 				{
-					var dpaParameterModel = new DPAParameterModel() { Id = zfControlModel.Id, Name = zfControlModel.Name, Value = zfControlModel.Value };
-					dpaParametersModel.Add(dpaParameterModel);
+					if (zfControlModel.Count > 0) {
+						var numberItem = "No";
+						foreach (var tableRow in zfControlModel.Values) {
+							var rowParams = tableRow.Keys.Where(x => x != numberItem)
+								.Select(key => new DPAParameterModel() {
+									Id = string.Format("{0}/{1}", zfControlModel.Id, tableRow[numberItem]),
+									Name = string.Format("{0}/{1}/{2}", zfControlModel.Name, tableRow[numberItem], key),
+									Value = tableRow[key]
+								});
+							dpaParametersModel.AddRange(rowParams);
+						}
+					} else {
+						var dpaParameterModel = new DPAParameterModel() { Id = zfControlModel.Id, Name = zfControlModel.Name, Value = zfControlModel.Value };
+						dpaParametersModel.Add(dpaParameterModel);
+					}
 				}
 				dpaParameterSetModel.Parameters = dpaParametersModel.ToArray();
 				
