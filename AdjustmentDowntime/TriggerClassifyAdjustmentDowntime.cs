@@ -41,7 +41,7 @@ namespace Xtensive.Project109.Host.DPA
 				logger.LogInformation(string.Format("DowntimeInfo equipment: {0}", equipmentId));
 
 				if (!dpaSettings.UseDowntimeClassificationForAdjustment.Value) {
-					logger.LogInformation(string.Format("Script failed to start. Use downtime classification settings is disabled"));
+					logger.LogError(string.Format("Script failed to start. Use downtime classification settings is disabled"));
 					return;
 				}
 

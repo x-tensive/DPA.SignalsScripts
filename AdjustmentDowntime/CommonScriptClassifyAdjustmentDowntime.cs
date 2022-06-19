@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Xtensive.Core;
 using Xtensive.DPA.EventManager;
 using Xtensive.Orm;
 
@@ -9,17 +10,19 @@ namespace Xtensive.Project109.Host.DPA
 	public class IdleSpeedAdjustmentDowntime : AdjustmentDowntimeReason
 	{
 		// Название причины из справочника для классификации периода наладки
-		public const string reasonName = "Холостой ход при работе без управляющей программы";
+		public const string ReasonName = "Холостой ход при работе без управляющей программы";
 
-		public override Dictionary<EventInfoType, Predicate<double>> EventPredicateDict => new Dictionary<EventInfoType, Predicate<double>>() {
-			// скорость шпинделя != 0
-			{ EventInfoType.SpindleSpeed,  (val) => val != 0 },
+		private static readonly Dictionary<EventInfoType, Predicate<double>> eventPredicateDict = new Dictionary<EventInfoType, Predicate<double>>() {
+			// скорость шпинделя > 0
+			{ EventInfoType.SpindleSpeed,  (val) => Math.Abs(val) > double.Epsilon },
 			// нагрузка на шпиндель < 2%
-			{ EventInfoType.SpindleLoad, (val) => val < 2 }
+			{ EventInfoType.SpindleLoad, (val) => Math.Abs(val) < 2.0 }
 		};
 
+		protected override Dictionary<EventInfoType, Predicate<double>> EventPredicateDict => eventPredicateDict;
+
 		public IdleSpeedAdjustmentDowntime(IIndicatorContext indicatorContext, long equipmentId, DateTimeOffset startDate, DateTimeOffset endDate)
-			: base(indicatorContext, reasonName, equipmentId, startDate, endDate)
+			: base(indicatorContext, ReasonName, equipmentId, startDate, endDate)
 		{
 
 		}
@@ -29,19 +32,21 @@ namespace Xtensive.Project109.Host.DPA
 	public class NoNcProgramAdjustmentDowntime : AdjustmentDowntimeReason
 	{
 		// Название причины из справочника для классификации периода наладки
-		public const string reasonName = "Работа без управляющей программы";
+		public const string ReasonName = "Работа без управляющей программы";
 
-		public override Dictionary<EventInfoType, Predicate<double>> EventPredicateDict => new Dictionary<EventInfoType, Predicate<double>>() {
-			// скорость шпинделя != 0
-			{ EventInfoType.SpindleSpeed,  (val) => val != 0 },
+		private static readonly Dictionary<EventInfoType, Predicate<double>> eventPredicateDict = new Dictionary<EventInfoType, Predicate<double>>() {
+			// скорость шпинделя > 0
+			{ EventInfoType.SpindleSpeed,  (val) => Math.Abs(val) > double.Epsilon },
 			// нагрузка на шпиндель >= 2%
-			{ EventInfoType.SpindleLoad, (val) => val >= 2 },
-			// подача != 0
-			{ EventInfoType.FeedRate, (val) => val != 0 }
+			{ EventInfoType.SpindleLoad, (val) => Math.Abs(val) >= 2.0 },
+			// подача > 0
+			{ EventInfoType.FeedRate, (val) => Math.Abs(val) > double.Epsilon }
 		};
 
+		protected override Dictionary<EventInfoType, Predicate<double>> EventPredicateDict => eventPredicateDict;
+
 		public NoNcProgramAdjustmentDowntime(IIndicatorContext indicatorContext, long equipmentId, DateTimeOffset startDate, DateTimeOffset endDate)
-			: base(indicatorContext, reasonName, equipmentId, startDate, endDate)
+			: base(indicatorContext, ReasonName, equipmentId, startDate, endDate)
 		{
 		}
 	}
@@ -50,13 +55,13 @@ namespace Xtensive.Project109.Host.DPA
 	{
 		public ReferenceBookReasonsOfDowntime Reason { get; set; }
 		public long EquipmentId { get; }
-		public abstract Dictionary<EventInfoType, Predicate<double>> EventPredicateDict { get; }
+		protected abstract Dictionary<EventInfoType, Predicate<double>> EventPredicateDict { get; }
 		public DateTimeOffset StartDate { get; set; }
 		public DateTimeOffset EndDate { get; set; }
 
 		public DateTimeSegments Segments { get; set; }
 
-		public AdjustmentDowntimeReason(IIndicatorContext indicatorContext, 
+		protected AdjustmentDowntimeReason(IIndicatorContext indicatorContext, 
 			string reasonName, long equipmentId, DateTimeOffset startDate, DateTimeOffset endDate)
 		{
 			Reason = Query.All<ReferenceBookReasonsOfDowntime>()
@@ -75,30 +80,28 @@ namespace Xtensive.Project109.Host.DPA
 
 
 
-		private DateTimeSegments BuildFilteredDateTimeSegments(List<IndicatorValue> values, Predicate<double> filter)
+		private static DateTimeSegments BuildFilteredDateTimeSegments(List<IndicatorValue> values, Predicate<double> filter)
 		{
 			var result = new DateTimeSegments();
 
 			DateTimeOffset? startSegment = null;
-			DateTimeOffset? endSegment = null;
+			var lastValue = values.Last();
+
 			foreach (var item in values) {
 				var currentIndicatorValue = IndicatorSimpleModel.GetDoubleValue(item.Value);
 				var isSatisfiedValue = filter(currentIndicatorValue);
 
-				if (!isSatisfiedValue && startSegment.HasValue) {
-					endSegment = item.TimeStamp.ToLocalTime();
-					result.Add(new DateTimeSegment(startSegment.Value, endSegment.Value));
-					startSegment = null;
-					endSegment = null;
+				if (isSatisfiedValue && !startSegment.HasValue && item != lastValue) {
+					startSegment = item.TimeStamp;
 				}
-				else if (isSatisfiedValue && !startSegment.HasValue) {
-					startSegment = item.TimeStamp.ToLocalTime();
+				else if (!isSatisfiedValue && startSegment.HasValue && startSegment.Value != item.TimeStamp) {
+					result.Add(new DateTimeSegment(startSegment.Value, item.TimeStamp));
+					startSegment = null;
 				}
 			}
 
-			if (startSegment.HasValue && !endSegment.HasValue) {
-				endSegment = values.Last().TimeStamp.ToLocalTime();
-				result.Add(new DateTimeSegment(startSegment.Value, endSegment.Value));
+			if (startSegment.HasValue && lastValue.TimeStamp != startSegment.Value) {
+				result.Add(new DateTimeSegment(startSegment.Value, lastValue.TimeStamp));
 			}
 
 			return result;
@@ -109,14 +112,18 @@ namespace Xtensive.Project109.Host.DPA
 			DateTimeSegments result = null;
 
 			foreach (var eventPredicate in EventPredicateDict) {
-				var indicator = Query.All<Indicator>().First(indic => indic.Device.Owner.Id == EquipmentId && indic.StateName == eventPredicate.Key.GetStateName());
-				var values = indicatorContext.GetIndicatorData(indicator.Id, StartDate, EndDate)?.ToList();
-				if (values == null || values.Count() == 0) {
+				var indicator = Query.All<Indicator>().FirstOrDefault(indic => indic.Device.Owner.Id == EquipmentId && indic.StateName == eventPredicate.Key.GetStateName());
+				if (indicator == null) {
+					throw new IndicatorNotFoundException();
+				}
+
+				var values = indicatorContext.GetIndicatorData(indicator, StartDate, EndDate);
+				if (values.IsNullOrEmpty()) {
 					return null;
 				}
 
-				var dtSegments = BuildFilteredDateTimeSegments(values, eventPredicate.Value);
-				if (dtSegments == null) {
+				var dtSegments = BuildFilteredDateTimeSegments(values.OrderBy(v => v.TimeStamp).ToList(), eventPredicate.Value);
+				if (dtSegments.IsNullOrEmpty()) {
 					return null;
 				}
 
@@ -129,8 +136,8 @@ namespace Xtensive.Project109.Host.DPA
 
 	public static class AdjustmentDowntimeCreator
 	{
-		public static List<string> Reasons =>
-			new List<string> { IdleSpeedAdjustmentDowntime.reasonName, NoNcProgramAdjustmentDowntime.reasonName };
+		private static readonly List<string> reasons = new List<string> { IdleSpeedAdjustmentDowntime.ReasonName, NoNcProgramAdjustmentDowntime.ReasonName };
+		public static List<string> Reasons => reasons;
 
 		static AdjustmentDowntimeCreator()
 		{
@@ -139,9 +146,9 @@ namespace Xtensive.Project109.Host.DPA
 		public static AdjustmentDowntimeReason Create(IIndicatorContext indicatorContext, string reasonName, long equipmentId, DateTimeOffset startDate, DateTimeOffset endDate)
 		{
 			switch (reasonName) {
-				case IdleSpeedAdjustmentDowntime.reasonName:
+				case IdleSpeedAdjustmentDowntime.ReasonName:
 					return new IdleSpeedAdjustmentDowntime(indicatorContext, equipmentId, startDate, endDate);
-				case NoNcProgramAdjustmentDowntime.reasonName:
+				case NoNcProgramAdjustmentDowntime.ReasonName:
 					return new NoNcProgramAdjustmentDowntime(indicatorContext, equipmentId, startDate, endDate);
 				default:
 					throw new NotImplementedException();
