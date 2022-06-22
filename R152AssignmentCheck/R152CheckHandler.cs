@@ -27,10 +27,15 @@ namespace Xtensive.Project109.Host.DPA
 	public class R152CheckHandler : Signals2HandlerBase
 	{
 		/// <summary>
-		/// Message teamplate to be used for user notification
+		//В микросервисе сообщений надо добавить темплейт "R152 NOT FOUND" со следующим сообщением:
+		//"Обращение к регистру R152 не обнаружено в теле УП {ProgramName}, учет выпуска не будет произведен"
 		/// </summary>
-		private const string NotFoundTemplateName = "R152 NOT FOUND";//Обращение к регистру R152 не обнаружено в теле УП {ProgramName}, учет выпуска не будет произведен
-		private const string NotIncreasedTemplateName = "R152 NOT INCREASED";//Регистр R152 присутствует в теле УП {ProgramName}, но его значение не изменяется, учет выпуска не будет произведен
+		private const string NotFoundTemplateName = "R152 NOT FOUND";
+		/// <summary>
+		//В микросервисе сообщений надо добавить темплейт "R152 NOT INCREASED" со следующим сообщением:
+		//"Регистр R152 присутствует в теле УП {ProgramName}, но его значение не изменяется, учет выпуска не будет произведен"
+		/// </summary>
+		private const string NotIncreasedTemplateName = "R152 NOT INCREASED";
 
 		private readonly IJobService jobService;
 		private readonly NotificationMessageTaskBuilder notificationMessageTaskBuilder;
