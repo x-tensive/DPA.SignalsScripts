@@ -1,4 +1,3 @@
 DPA-6249.
-Скрипт отправляет web-уведомление пользователям из группы технологов о том, что не будет произведен учет выпуска,
-если при скачивании файла УП, в теле УП не было обнаружено упоминания регистра R152,
-либо в этот регистр не производилась запись значения.
+Script sends web-notification to Technology group users about lack of production output accounting
+if the downloaded CP file doesn't contain reference to R152, or doesn't modify its value.
