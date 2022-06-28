@@ -27,14 +27,14 @@ namespace Xtensive.Project109.Host.DPA
 	public class R152CheckHandler : Signals2HandlerBase
 	{
 		/// <summary>
-		/// В микросервисе сообщений надо добавить темплейт "R152 NOT FOUND" со следующим сообщением:
-		/// "Обращение к регистру R152 не обнаружено в теле УП {ProgramName}, учет выпуска не будет произведен"
+		// "R152 NOT FOUND" message template must be added in Messenger microservice, with following message body:
+		// "R152 reference was not found in CP {ProgramName} body, production output accounting will not work"
 		/// </summary>
 		private const string NotFoundTemplateName = "R152 NOT FOUND";
 
 		/// <summary>
-		/// В микросервисе сообщений надо добавить темплейт "R152 NOT INCREASED" со следующим сообщением:
-		/// "Регистр R152 присутствует в теле УП {ProgramName}, но его значение не изменяется, учет выпуска не будет произведен"
+		// "R152 NOT INCREASED" message template must be added in Messenger microservice, with following message body:
+		// "R152 reference exists in CP {ProgramName} body, but its value is never modified, production output accounting will not work"
 		/// </summary>
 		private const string NotIncreasedTemplateName = "R152 NOT INCREASED";
 
