@@ -9,13 +9,13 @@ namespace Xtensive.Project109.Host.DPA
 {
 	public class IdleSpeedAdjustmentDowntime : AdjustmentDowntimeReason
 	{
-		// Название причины из справочника для классификации периода наладки
+		// Reason name from reference book reasons of downtime. It's used for classification adjustment downtime period
 		public const string ReasonName = "Холостой ход при работе без управляющей программы";
 
 		private static readonly Dictionary<EventInfoType, Predicate<double>> eventPredicateDict = new Dictionary<EventInfoType, Predicate<double>>() {
-			// скорость шпинделя > 0
+			// Spindle speed > 0
 			{ EventInfoType.SpindleSpeed,  (val) => Math.Abs(val) > double.Epsilon },
-			// нагрузка на шпиндель < 2%
+			// Spindle load < 2%
 			{ EventInfoType.SpindleLoad, (val) => Math.Abs(val) < 2.0 }
 		};
 
@@ -31,15 +31,15 @@ namespace Xtensive.Project109.Host.DPA
 
 	public class NoNcProgramAdjustmentDowntime : AdjustmentDowntimeReason
 	{
-		// Название причины из справочника для классификации периода наладки
+		// Reason name from reference book reasons of downtime. It's used for classification adjustment downtime period
 		public const string ReasonName = "Работа без управляющей программы";
 
 		private static readonly Dictionary<EventInfoType, Predicate<double>> eventPredicateDict = new Dictionary<EventInfoType, Predicate<double>>() {
-			// скорость шпинделя > 0
+			// Spindle speed > 0
 			{ EventInfoType.SpindleSpeed,  (val) => Math.Abs(val) > double.Epsilon },
-			// нагрузка на шпиндель >= 2%
+			// Spindle load >= 2%
 			{ EventInfoType.SpindleLoad, (val) => Math.Abs(val) >= 2.0 },
-			// подача > 0
+			// Feedrate > 0
 			{ EventInfoType.FeedRate, (val) => Math.Abs(val) > double.Epsilon }
 		};
 
@@ -112,12 +112,14 @@ namespace Xtensive.Project109.Host.DPA
 			DateTimeSegments result = null;
 
 			foreach (var eventPredicate in EventPredicateDict) {
-				var indicator = Query.All<Indicator>().FirstOrDefault(indic => indic.Device.Owner.Id == EquipmentId && indic.StateName == eventPredicate.Key.GetStateName());
+				var indicator = Query.All<Indicator>()
+					.FirstOrDefault(indic => indic.Device.Owner.Id == EquipmentId && indic.StateName == eventPredicate.Key.GetStateName());
+
 				if (indicator == null) {
 					throw new IndicatorNotFoundException();
 				}
 
-				var values = indicatorContext.GetIndicatorData(indicator, StartDate, EndDate);
+				var values = indicatorContext.GetIndicatorData(indicator.Id, StartDate, EndDate);
 				if (values.IsNullOrEmpty()) {
 					return null;
 				}

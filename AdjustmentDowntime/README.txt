@@ -1,3 +1,4 @@
 DPA-6301
-Скрипт выполняет классификацию наладки при закрытии периода. 
-Классифицируются только те интервалы, индикаторы которых удовлятворяют значениям из EventPredicateDict(см. комментарии в CommonScriptAdjustmentDowntime)
+Script is used for classification of adjustment downtime periods. Only periods during which workcenter parameters satisfy condition are classified. 
+You can customise conditions and downtime reason name in CommonScriptAdjustmentDowntime.cs file (see attached comments). 
+Make sure that downtime reasons are created in reference book with same names as in CommonScriptAdjustmentDowntime.cs
