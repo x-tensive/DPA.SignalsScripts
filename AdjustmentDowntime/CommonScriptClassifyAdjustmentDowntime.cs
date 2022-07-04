@@ -9,7 +9,10 @@ namespace Xtensive.Project109.Host.DPA
 {
 	public class IdleSpeedAdjustmentDowntime : AdjustmentDowntimeReason
 	{
-		// Reason name from reference book reasons of downtime. It's used for classification adjustment downtime period
+		/// <summary>
+		/// Reason name from reference book reasons of downtime. It's used for classification adjustment downtime period
+		/// Important! This reason must be added in reference book reasons of downtime
+		/// </summary>
 		public const string ReasonName = "Холостой ход при работе без управляющей программы";
 
 		private static readonly Dictionary<EventInfoType, Predicate<double>> eventPredicateDict = new Dictionary<EventInfoType, Predicate<double>>() {
@@ -31,7 +34,10 @@ namespace Xtensive.Project109.Host.DPA
 
 	public class NoNcProgramAdjustmentDowntime : AdjustmentDowntimeReason
 	{
-		// Reason name from reference book reasons of downtime. It's used for classification adjustment downtime period
+		/// <summary>
+		/// Reason name from reference book reasons of downtime. It's used for classification adjustment downtime period
+		/// Important! This reason must be added in reference book reasons of downtime
+		/// </summary>
 		public const string ReasonName = "Работа без управляющей программы";
 
 		private static readonly Dictionary<EventInfoType, Predicate<double>> eventPredicateDict = new Dictionary<EventInfoType, Predicate<double>>() {
@@ -53,6 +59,10 @@ namespace Xtensive.Project109.Host.DPA
 
 	public abstract class AdjustmentDowntimeReason
 	{
+		/// <summary>
+		/// Periods with duration less than argument value in brackets are ignored by classification
+		/// </summary>
+		public static TimeSpan MinDuration = TimeSpan.FromSeconds(10);
 		public ReferenceBookReasonsOfDowntime Reason { get; set; }
 		public long EquipmentId { get; }
 		protected abstract Dictionary<EventInfoType, Predicate<double>> EventPredicateDict { get; }
@@ -94,14 +104,23 @@ namespace Xtensive.Project109.Host.DPA
 				if (isSatisfiedValue && !startSegment.HasValue && item != lastValue) {
 					startSegment = item.TimeStamp;
 				}
-				else if (!isSatisfiedValue && startSegment.HasValue && startSegment.Value != item.TimeStamp) {
-					result.Add(new DateTimeSegment(startSegment.Value, item.TimeStamp));
+				else if (!isSatisfiedValue && startSegment.HasValue) {
+					var newSegment = new DateTimeSegment(startSegment.Value, item.TimeStamp);
+
+					if (newSegment.Duration >= MinDuration) {
+						result.Add(newSegment);
+					}
+					
 					startSegment = null;
 				}
 			}
 
-			if (startSegment.HasValue && lastValue.TimeStamp != startSegment.Value) {
-				result.Add(new DateTimeSegment(startSegment.Value, lastValue.TimeStamp));
+			
+			if (startSegment.HasValue) {
+				var lastSegment = new DateTimeSegment(startSegment.Value, lastValue.TimeStamp);
+				if (lastSegment.Duration >= MinDuration) {
+					result.Add(lastSegment);
+				}
 			}
 
 			return result;
@@ -130,6 +149,10 @@ namespace Xtensive.Project109.Host.DPA
 				}
 
 				result = result == null ? dtSegments : result.Intersection(dtSegments);
+			}
+
+			if (result != null) {
+				result = new DateTimeSegments(result.Where(d => d.Duration >= MinDuration));
 			}
 
 			return result;
