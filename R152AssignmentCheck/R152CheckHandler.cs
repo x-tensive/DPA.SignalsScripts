@@ -41,7 +41,7 @@ namespace Xtensive.Project109.Host.DPA
 		/// <summary>
 		// Program download events only from equipment added to one of equipment groups with names from this list will be processed
 		/// </summary>
-		private string[] AffectedEquipmentGroupNames = new[] { "R152 GROUP" };
+		private static string[] AffectedEquipmentGroupNames = new[] { "R152 GROUP" };
 
 		private readonly IJobService jobService;
 		private readonly NotificationMessageTaskBuilder notificationMessageTaskBuilder;
