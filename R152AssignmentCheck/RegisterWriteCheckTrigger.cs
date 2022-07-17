@@ -13,16 +13,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Xtensive.Project109.Host.DPA
 {
-	public class R152CheckTrigger : Signals2TriggerBase
+	public class RegisterWriteCheckTrigger : Signals2TriggerBase
 	{
-		private readonly ILogger<R152CheckTrigger> logger;
+		private readonly ILogger<RegisterWriteCheckTrigger> logger;
 		private IEventSource generalEventSource;
 		private IDisposable sub;
 
-		public R152CheckTrigger(IServiceProvider serviceProvider)
+		public RegisterWriteCheckTrigger(IServiceProvider serviceProvider)
 		{
 			generalEventSource = serviceProvider.GetRequiredService<IEventSource>();
-			logger = serviceProvider.GetRequiredService<ILogger<R152CheckTrigger>>();
+			logger = serviceProvider.GetRequiredService<ILogger<RegisterWriteCheckTrigger>>();
 		}
 
 		public override Task StartAsync()
@@ -40,7 +40,7 @@ namespace Xtensive.Project109.Host.DPA
 			}
 			catch (Exception e)
 			{
-				logger.LogError("Failed to check CP source code for R152 register incrementation", e);
+				logger.LogError("Failed to check CP source code for register write check", e);
 			}
 		}
 
