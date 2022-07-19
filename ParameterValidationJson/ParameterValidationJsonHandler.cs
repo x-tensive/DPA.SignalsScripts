@@ -257,7 +257,9 @@ namespace Xtensive.Project109.Host.DPA
 					string.IsNullOrEmpty(validationResult.Parameter.Description)
 						? validationResult.Parameter.Name
 						: validationResult.Parameter.Description,
-					validationResult.CurrentValue,
+					validationResult.CalculatedValue != null
+						? validationResult.CalculatedValue
+						: validationResult.CurrentValue,
 					validationResult.Parameter.Min,
 					validationResult.Parameter.Max
 				);
@@ -294,6 +296,7 @@ namespace Xtensive.Project109.Host.DPA
 	{
 		public string Name { get; set; }
 		public string Value { get; set; }
+		public Dictionary<string, string>[] Values { get; set; }
 	}
 	
 	public class JsonModelToValidationModelMapper
@@ -316,8 +319,20 @@ namespace Xtensive.Project109.Host.DPA
 				var  validationParameterModels = new List<ValidationParameterModel>(countOfParameters);
 				foreach (var jsonControlModel in  jsonDialogModel.Controls)
 				{
-					var validationParameterModel = new ValidationParameterModel() { Name = jsonControlModel.Name, Value = jsonControlModel.Value };
-					validationParameterModels.Add(validationParameterModel);
+					if (jsonControlModel.Values != null) {
+						var numberItem = "No";
+						foreach (var tableRow in jsonControlModel.Values) {
+							var rowParams = tableRow.Keys.Where(x => x != numberItem)
+								.Select(key => new ValidationParameterModel() {
+									Name = string.Format("{0}/{1}/{2}", jsonControlModel.Name, tableRow[numberItem], key),
+									Value = tableRow[key]
+								});
+							validationParameterModels.AddRange(rowParams);
+						}
+					} else {
+						var validationParameterModel = new ValidationParameterModel() { Name = jsonControlModel.Name, Value = jsonControlModel.Value };
+						validationParameterModels.Add(validationParameterModel);
+					}
 				}
 				validationParameterSetModel.Parameters = validationParameterModels.ToArray();
 				
