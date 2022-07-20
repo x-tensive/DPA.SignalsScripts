@@ -128,7 +128,7 @@ namespace Xtensive.Project109.Host.DPA
 					continue;
 				if (result == RegisterCheckResult.NotFound)
 					result = RegisterCheckResult.Referenced;
-				var eqInd = regRefInd + 4;
+				var eqInd = regRefInd + registerName.Length;
 				if (eqInd < lineCode.Length && lineCode[eqInd] == '=') {
 					result = RegisterCheckResult.Assigned;
 					break;
