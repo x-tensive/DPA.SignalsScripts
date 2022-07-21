@@ -1,17 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Xtensive.Orm;
-using Xtensive.Project109.Host.Base;
-using Xtensive.Project109.Host.Security;
-using Xtensive.Project109.Host.DPA;
-using DPA.Messenger.Client.Models;
 using DPA.Adapter.Tests.CommandHandlers.NcSubProgramEvent;
-using Xtensive.DPA.FileManager;
-using System.Collections.Generic;
+using DPA.Messenger.Client.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Xtensive.DPA.FileManager;
+using Xtensive.Orm;
+using Xtensive.Project109.Host.Security;
 
 namespace Xtensive.Project109.Host.DPA
 {
@@ -49,13 +46,11 @@ namespace Xtensive.Project109.Host.DPA
 		/// </summary>
 		private const string AffectedEquipmentGroupNameTemplate = "CHECK WRITE OPERATION ";
 
-		private readonly IJobService jobService;
 		private readonly NotificationMessageTaskBuilder notificationMessageTaskBuilder;
 		private readonly ILogger<RegisterWriteCheckHandler> logger;
 
 		public RegisterWriteCheckHandler(IServiceProvider serviceProvider)
 		{
-			jobService = serviceProvider.GetRequiredService<IJobService>();
 			notificationMessageTaskBuilder = serviceProvider.GetRequiredService<NotificationMessageTaskBuilder>();
 			logger = serviceProvider.GetRequiredService<ILogger<RegisterWriteCheckHandler>>();
 		}
